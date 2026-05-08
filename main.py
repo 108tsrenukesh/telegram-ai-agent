@@ -7,13 +7,17 @@ from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 
-from telegram import (
-    Bot,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup
-)
+from telegram import Bot
 
 from ai_router import generate_reply
+
+from intent_engine import detect_intent
+
+from memory_manager import (
+    add_task,
+    get_pending_tasks,
+    load_contacts
+)
 
 
 # =====================================
@@ -66,9 +70,9 @@ bot = Bot(token=BOT_TOKEN)
 # Files
 # =====================================
 
-PROCESSED_FILE = "processed_messages.json"
-
-PENDING_FILE = "pending_replies.json"
+PROCESSED_FILE = (
+    "processed_messages.json"
+)
 
 
 # =====================================
@@ -79,50 +83,24 @@ def load_processed_messages():
 
     try:
 
-        with open(PROCESSED_FILE, "r") as file:
+        with open(
+            PROCESSED_FILE,
+            "r"
+        ) as file:
 
             return json.load(file)
 
-    except Exception as e:
-
-        logging.exception(e)
+    except Exception:
 
         return {}
 
 
 def save_processed_messages(data):
 
-    with open(PROCESSED_FILE, "w") as file:
-
-        json.dump(
-            data,
-            file,
-            indent=4
-        )
-
-
-# =====================================
-# Pending Replies Helpers
-# =====================================
-
-def load_pending_replies():
-
-    try:
-
-        with open(PENDING_FILE, "r") as file:
-
-            return json.load(file)
-
-    except Exception as e:
-
-        logging.exception(e)
-
-        return {}
-
-
-def save_pending_replies(data):
-
-    with open(PENDING_FILE, "w") as file:
+    with open(
+        PROCESSED_FILE,
+        "w"
+    ) as file:
 
         json.dump(
             data,
@@ -148,21 +126,60 @@ client = TelegramClient(
 
 async def process_messages():
 
-    processed = load_processed_messages()
+    processed = (
+        load_processed_messages()
+    )
 
-    pending = load_pending_replies()
+    contacts = load_contacts()
 
-    logging.info("Starting Telegram scan...")
+    logging.info(
+        "Starting Telegram scan..."
+    )
 
     await client.start()
+
+    # =================================
+    # Reminder Engine
+    # =================================
+
+    pending_tasks = (
+        get_pending_tasks()
+    )
+
+    if pending_tasks:
+
+        reminder_text = (
+            "📌 Pending Reminders\n\n"
+        )
+
+        for index, task in enumerate(
+            pending_tasks,
+            start=1
+        ):
+
+            reminder_text += (
+                f"{index}. "
+                f"[TASK ID: {index - 1}] "
+                f"{task['message']}\n"
+                f"From: {task['from']}\n\n"
+            )
+
+        await bot.send_message(
+            chat_id=ADMIN_USER_ID,
+            text=reminder_text
+        )
+
+        logging.info(
+            "Pending reminders sent"
+        )
 
     dialogs = await client.get_dialogs()
 
     for dialog in dialogs:
 
-        # ==============================
+        # =================================
         # Skip unwanted chats
-        # ==============================
+        # =================================
 
         if dialog.is_channel:
             continue
@@ -170,24 +187,41 @@ async def process_messages():
         if dialog.is_group:
             continue
 
-        if getattr(dialog.entity, "bot", False):
+        if getattr(
+            dialog.entity,
+            "bot",
+            False
+        ):
             continue
 
-        if getattr(dialog.entity, "self", False):
+        if getattr(
+            dialog.entity,
+            "self",
+            False
+        ):
             continue
 
-        unread_count = dialog.unread_count
+        unread_count = (
+            dialog.unread_count
+        )
 
         if unread_count == 0:
             continue
 
         logging.info(
-            f"Unread messages found in: {dialog.name}"
+            f"Unread messages found in: "
+            f"{dialog.name}"
         )
 
-        messages = await client.get_messages(
-            dialog.id,
-            limit=1
+        # =================================
+        # Fetch recent messages
+        # =================================
+
+        messages = (
+            await client.get_messages(
+                dialog.id,
+                limit=20
+            )
         )
 
         if not messages:
@@ -199,7 +233,9 @@ async def process_messages():
 
         message_id = latest_message.id
 
-        last_processed = processed.get(chat_id)
+        last_processed = (
+            processed.get(chat_id)
+        )
 
         if last_processed == message_id:
 
@@ -209,89 +245,223 @@ async def process_messages():
 
             continue
 
-        if not latest_message.message:
-            continue
+        # =================================
+        # Build combined conversation
+        # =================================
 
-        message_text = latest_message.message
+        combined_messages = []
 
-        # Prevent huge prompts
+        for msg in reversed(messages):
 
-        message_text = message_text[:2000]
+            if not msg:
+                continue
 
-        logging.info("Generating AI reply...")
+            if msg.message:
 
-        try:
-
-            ai_reply = generate_reply(
-                message_text
-            )
-
-        except Exception as e:
-
-            logging.exception(e)
-
-            ai_reply = (
-                "Unable to generate reply"
-            )
-
-        if not ai_reply:
-            continue
-
-        # ==============================
-        # Unique Request ID
-        # ==============================
-
-        unique_id = (
-            f"{chat_id}_{message_id}"
-        )
-
-        # ==============================
-        # Save Pending Reply
-        # ==============================
-
-        pending[unique_id] = {
-            "chat_id": dialog.id,
-            "reply_text": ai_reply
-        }
-
-        save_pending_replies(
-            pending
-        )
-
-        # ==============================
-        # Inline Buttons
-        # ==============================
-
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    "Approve",
-                    callback_data=(
-                        f"approve:{unique_id}"
-                    )
-                ),
-
-                InlineKeyboardButton(
-                    "Reject",
-                    callback_data=(
-                        f"reject:{unique_id}"
-                    )
+                combined_messages.append(
+                    msg.message
                 )
-            ]
-        ]
 
-        reply_markup = (
-            InlineKeyboardMarkup(
-                keyboard
-            )
+            elif msg.gif:
+
+                combined_messages.append(
+                    "[GIF]"
+                )
+
+            elif msg.sticker:
+
+                combined_messages.append(
+                    "[STICKER]"
+                )
+
+            elif msg.photo:
+
+                combined_messages.append(
+                    "[PHOTO]"
+                )
+
+        message_text = " ".join(
+            combined_messages
+        )[:2000]
+
+        if not message_text:
+            continue
+
+        logging.info(
+            f"Combined message: "
+            f"{message_text}"
         )
 
-        # ==============================
-        # Notification Message
-        # ==============================
+        # =================================
+        # Relationship Detection
+        # =================================
 
-        notification_text = f"""
-📩 New unread message
+        relationship = contacts.get(
+            dialog.name,
+            "GENERAL"
+        )
+
+        logging.info(
+            f"Relationship: {relationship}"
+        )
+
+        # =================================
+        # Intent Detection
+        # =================================
+
+        intent = detect_intent(
+            message_text
+        )
+
+        logging.info(
+            f"Intent detected: {intent}"
+        )
+
+        # =================================
+        # TASK Intent
+        # =================================
+
+        if intent == "TASK":
+
+            task = {
+
+                "from": dialog.name,
+
+                "chat_id": dialog.id,
+
+                "message": message_text,
+
+                "status": "PENDING"
+
+            }
+
+            add_task(task)
+
+            if relationship == "FAMILY":
+
+                assistant_reply = (
+                    "Hello, this is Lucifer, "
+                    "Renukesh's AI assistant. "
+                    "He is currently unavailable. "
+                    "I'll remind Renukesh "
+                    "about this."
+                )
+
+            elif relationship == "FRIEND":
+
+                assistant_reply = (
+                    "Hey! Lucifer here, "
+                    "Renukesh's AI assistant. "
+                    "He is currently unavailable. "
+                    "I'll remind him about this."
+                )
+
+            elif relationship == "WIFE":
+
+                assistant_reply = (
+                    "Hey Akshatha ❤️ "
+                    "Lucifer here. "
+                    "Got it, "
+                    "I'll remind Renukesh."
+                )
+
+            else:
+
+                assistant_reply = (
+                    "Hello, this is Lucifer, "
+                    "Renukesh's AI assistant. "
+                    "He is currently unavailable. "
+                    "I'll remind him about this."
+                )
+
+            try:
+
+                await client.send_message(
+                    entity=dialog.id,
+                    message=assistant_reply
+                )
+
+                logging.info(
+                    "Task acknowledgement sent"
+                )
+
+            except Exception as e:
+
+                logging.exception(e)
+
+            await bot.send_message(
+                chat_id=ADMIN_USER_ID,
+                text=(
+                    f"📌 New Task Created\n\n"
+                    f"From: {dialog.name}\n\n"
+                    f"Message:\n"
+                    f"{message_text}"
+                )
+            )
+
+        # =================================
+        # STATUS CHECK
+        # =================================
+
+        elif intent == "STATUS_CHECK":
+
+            assistant_reply = (
+                "Renukesh is currently "
+                "unavailable. "
+                "I'll check and update you."
+            )
+
+            try:
+
+                await client.send_message(
+                    entity=dialog.id,
+                    message=assistant_reply
+                )
+
+                logging.info(
+                    "Status acknowledgement sent"
+                )
+
+            except Exception as e:
+
+                logging.exception(e)
+
+            await bot.send_message(
+                chat_id=ADMIN_USER_ID,
+                text=(
+                    f"❓ Status Check Message\n\n"
+                    f"From: {dialog.name}\n\n"
+                    f"Message:\n"
+                    f"{message_text}"
+                )
+            )
+
+        # =================================
+        # GENERAL
+        # =================================
+
+        else:
+
+            logging.info(
+                "Generating AI draft..."
+            )
+
+            try:
+
+                ai_reply = generate_reply(
+                    message_text
+                )
+
+            except Exception as e:
+
+                logging.exception(e)
+
+                ai_reply = (
+                    "Unable to generate draft"
+                )
+
+            notification_text = f"""
+⚠️ Manual Attention Required
 
 👤 Chat:
 {dialog.name}
@@ -299,21 +469,18 @@ async def process_messages():
 💬 Message:
 {message_text}
 
-🤖 Suggested Reply:
+🤖 Suggested Draft:
 {ai_reply}
 """
 
-        await bot.send_message(
-            chat_id=ADMIN_USER_ID,
-            text=notification_text,
-            reply_markup=reply_markup
-        )
+            await bot.send_message(
+                chat_id=ADMIN_USER_ID,
+                text=notification_text
+            )
 
-        logging.info("Notification sent")
-
-        # ==============================
+        # =================================
         # Save Processed Message
-        # ==============================
+        # =================================
 
         processed[chat_id] = message_id
 
