@@ -7,7 +7,11 @@ from dotenv import load_dotenv
 from telethon import TelegramClient
 from telethon.sessions import StringSession
 
-from telegram import Bot
+from telegram import (
+    Bot,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup
+)
 
 from ai_router import generate_reply
 
@@ -59,11 +63,17 @@ bot = Bot(token=BOT_TOKEN)
 
 
 # =====================================
-# Avoid Duplicate Replies
+# Files
 # =====================================
 
 PROCESSED_FILE = "processed_messages.json"
 
+PENDING_FILE = "pending_replies.json"
+
+
+# =====================================
+# Processed Messages Helpers
+# =====================================
 
 def load_processed_messages():
 
@@ -75,7 +85,7 @@ def load_processed_messages():
 
     except Exception as e:
 
-        logging.error(e)
+        logging.exception(e)
 
         return {}
 
@@ -83,6 +93,36 @@ def load_processed_messages():
 def save_processed_messages(data):
 
     with open(PROCESSED_FILE, "w") as file:
+
+        json.dump(
+            data,
+            file,
+            indent=4
+        )
+
+
+# =====================================
+# Pending Replies Helpers
+# =====================================
+
+def load_pending_replies():
+
+    try:
+
+        with open(PENDING_FILE, "r") as file:
+
+            return json.load(file)
+
+    except Exception as e:
+
+        logging.exception(e)
+
+        return {}
+
+
+def save_pending_replies(data):
+
+    with open(PENDING_FILE, "w") as file:
 
         json.dump(
             data,
@@ -109,6 +149,8 @@ client = TelegramClient(
 async def process_messages():
 
     processed = load_processed_messages()
+
+    pending = load_pending_replies()
 
     logging.info("Starting Telegram scan...")
 
@@ -173,6 +215,7 @@ async def process_messages():
         message_text = latest_message.message
 
         # Prevent huge prompts
+
         message_text = message_text[:2000]
 
         logging.info("Generating AI reply...")
@@ -185,7 +228,7 @@ async def process_messages():
 
         except Exception as e:
 
-            logging.error(e)
+            logging.exception(e)
 
             ai_reply = (
                 "Unable to generate reply"
@@ -193,6 +236,59 @@ async def process_messages():
 
         if not ai_reply:
             continue
+
+        # ==============================
+        # Unique Request ID
+        # ==============================
+
+        unique_id = (
+            f"{chat_id}_{message_id}"
+        )
+
+        # ==============================
+        # Save Pending Reply
+        # ==============================
+
+        pending[unique_id] = {
+            "chat_id": dialog.id,
+            "reply_text": ai_reply
+        }
+
+        save_pending_replies(
+            pending
+        )
+
+        # ==============================
+        # Inline Buttons
+        # ==============================
+
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    "Approve",
+                    callback_data=(
+                        f"approve:{unique_id}"
+                    )
+                ),
+
+                InlineKeyboardButton(
+                    "Reject",
+                    callback_data=(
+                        f"reject:{unique_id}"
+                    )
+                )
+            ]
+        ]
+
+        reply_markup = (
+            InlineKeyboardMarkup(
+                keyboard
+            )
+        )
+
+        # ==============================
+        # Notification Message
+        # ==============================
 
         notification_text = f"""
 📩 New unread message
@@ -209,18 +305,21 @@ async def process_messages():
 
         await bot.send_message(
             chat_id=ADMIN_USER_ID,
-            text=notification_text
+            text=notification_text,
+            reply_markup=reply_markup
         )
 
         logging.info("Notification sent")
 
         # ==============================
-        # Save processed message
+        # Save Processed Message
         # ==============================
 
         processed[chat_id] = message_id
 
-        save_processed_messages(processed)
+        save_processed_messages(
+            processed
+        )
 
 
 # =====================================
