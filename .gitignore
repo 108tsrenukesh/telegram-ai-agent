@@ -1,0 +1,27 @@
+# Python virtual env
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# Telethon session files
+*.session
+
+# Processed message state
+processed_messages.json
+
+# Logs
+logs/
+*.log
+
+# Python cache
+__pycache__/
+*.pyc
+
+# VS Code settings
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
