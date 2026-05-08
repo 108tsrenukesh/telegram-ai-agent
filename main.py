@@ -42,6 +42,14 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
+logging.getLogger(
+    "httpx"
+).setLevel(logging.WARNING)
+
+logging.getLogger(
+    "telethon"
+).setLevel(logging.WARNING)
+
 
 # =====================================
 # Telegram Bot
@@ -65,7 +73,9 @@ def load_processed_messages():
 
             return json.load(file)
 
-    except:
+    except Exception as e:
+
+        logging.error(e)
 
         return {}
 
@@ -74,7 +84,11 @@ def save_processed_messages(data):
 
     with open(PROCESSED_FILE, "w") as file:
 
-        json.dump(data, file)
+        json.dump(
+            data,
+            file,
+            indent=4
+        )
 
 
 # =====================================
@@ -115,6 +129,9 @@ async def process_messages():
             continue
 
         if getattr(dialog.entity, "bot", False):
+            continue
+
+        if getattr(dialog.entity, "self", False):
             continue
 
         unread_count = dialog.unread_count
@@ -160,9 +177,22 @@ async def process_messages():
 
         logging.info("Generating AI reply...")
 
-        ai_reply = generate_reply(
-            message_text
-        )
+        try:
+
+            ai_reply = generate_reply(
+                message_text
+            )
+
+        except Exception as e:
+
+            logging.error(e)
+
+            ai_reply = (
+                "Unable to generate reply"
+            )
+
+        if not ai_reply:
+            continue
 
         notification_text = f"""
 📩 New unread message
