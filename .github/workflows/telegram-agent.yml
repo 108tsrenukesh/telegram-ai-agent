@@ -3,9 +3,12 @@ name: Telegram AI Agent
 on:
 
   schedule:
-    - cron: '13,43 * * * *'
+    - cron: '*/30 * * * *'
 
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 concurrency:
   group: telegram-agent
@@ -35,6 +38,7 @@ jobs:
           pip install --no-cache-dir -r requirements.txt
 
       - name: Run Telegram Agent
+
         env:
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}
@@ -49,3 +53,18 @@ jobs:
 
         run: |
           python main.py
+
+      - name: Commit Updated Memory Files
+
+        run: |
+
+          git config --global user.name "github-actions"
+
+          git config --global user.email "actions@github.com"
+
+          git add tasks.json
+          git add processed_messages.json
+
+          git commit -m "Update assistant memory" || echo "No changes"
+
+          git push

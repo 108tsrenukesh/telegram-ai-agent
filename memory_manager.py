@@ -1,9 +1,64 @@
 import json
 import os
-
+from ai_router import generate_reply
+from datetime import datetime
 
 TASKS_FILE = "tasks.json"
 
+
+def update_last_reminded(
+    task_index
+):
+
+    tasks = load_tasks()
+
+    tasks[task_index][
+        "last_reminded"
+    ] = str(
+        datetime.now()
+    )
+
+    save_tasks(tasks)
+
+def complete_task(task_text):
+
+    tasks = load_tasks()
+
+    updated = False
+
+    for task in tasks:
+
+        if (
+            task_text.lower()
+            in
+            task["message"].lower()
+        ):
+
+            task["status"] = (
+                "COMPLETED"
+            )
+
+            updated = True
+
+    save_tasks(tasks)
+
+    return updated
+
+def task_exists(task_message):
+
+    tasks = load_tasks()
+
+    for task in tasks:
+
+        if (
+            task["message"].lower()
+            ==
+            task_message.lower()
+        ):
+
+            return True
+
+    return False
 
 def load_tasks():
 
@@ -19,6 +74,29 @@ def load_tasks():
     ) as file:
 
         return json.load(file)
+
+def extract_task(message):
+
+    prompt = f"""
+Convert this Telegram message into a clean actionable task.
+
+Message:
+{message}
+
+Reply ONLY with the task.
+"""
+
+    try:
+
+        task = generate_reply(
+            prompt
+        ).strip()
+
+        return task
+
+    except Exception:
+
+        return message
 
 def complete_task(task_index):
 

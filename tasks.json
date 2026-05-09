@@ -3,12 +3,124 @@
         "from": "Akshatha S",
         "chat_id": 1493901729,
         "message": "Can you please call me",
-        "status": "COMPLETED"
+        "status": "COMPLETED",
+        "last_reminded": "2026-05-09 12:26:03.388283"
     },
     {
         "from": "Akshatha S",
         "chat_id": 1493901729,
         "message": "Get food while coming",
-        "status": "COMPLETED"
+        "status": "COMPLETED",
+        "last_reminded": "2026-05-09 12:26:03.391738"
+    },
+    {
+        "from": "Akshatha S",
+        "chat_id": 1493901729,
+        "message": "Call and pick up food, flowers, and medical items on your way.",
+        "original_message": "Hi how are u darling Can you please call me I'll remind Renukesh about this. What you will remind Who are you then Get food while coming I'll remind Renukesh about this. bring flowers and medicines \u2764\ufe0f \u2764\ufe0f love yoi Where are you Bring some\nmedical items",
+        "status": "PENDING",
+        "priority": "HIGH",
+        "created_at": "2026-05-08 22:30:49.788213",
+        "last_reminded": "2026-05-09 12:26:03.394324"
+    },
+    {
+        "from": "Akshatha S",
+        "chat_id": 1493901729,
+        "message": "Remind Renukesh to pick up food, flowers, medicines, medical items, and chocolates on his way.",
+        "original_message": "Hi how are u darling Can you please call me I'll remind Renukesh about this. What you will remind Who are you then Get food while coming I'll remind Renukesh about this. bring flowers and medicines \u2764\ufe0f \u2764\ufe0f love yoi Where are you Bring some\nmedical items Hey love, I'm doing great, thanks for asking. I'll remind Renukesh to get food, flowers, and medicines on his way. I'll also make a note of the medical items you'd like him to pick up. See you soon, love you too \u2764\ufe0f ok please tell him to bring some chocolates of my favorite",
+        "status": "PENDING",
+        "priority": "HIGH",
+        "created_at": "2026-05-08 22:38:16.615012",
+        "last_reminded": "2026-05-09 12:26:03.397089"
+    },
+    {
+        "from": "Akshatha S",
+        "chat_id": 1493901729,
+        "message": "Buy grocery items.",
+        "original_message": "hi Bring grocery items",
+        "status": "PENDING",
+        "priority": "CRITICAL",
+        "created_at": "2026-05-08 23:39:02.834515",
+        "last_reminded": "2026-05-09 12:26:03.400088"
+    },
+    {
+        "from": "Akshatha S",
+        "chat_id": 1493901729,
+        "message": "Buy groceries: 1kg rice, 2l milk, 1l curd, and 2l oil.",
+        "original_message": "Bring grocery items rice 1kg, milk 2l, curd 1l and oil 2l",
+        "status": "PENDING",
+        "priority": "CRITICAL",
+        "created_at": "2026-05-08 23:40:03.485745",
+        "last_reminded": "2026-05-09 12:26:03.402647"
+    },
+    {
+        "from": "Akshatha S",
+        "chat_id": 1493901729,
+        "message": "\"Pick up groceries: 1kg rice, 2l milk, 1l curd, 2l oil, and a packet of chips.\"",
+        "original_message": "rice 1kg, milk 2l, curd 1l and oil 2l One packets chips also",
+        "status": "PENDING",
+        "priority": "CRITICAL",
+        "created_at": "2026-05-08 23:40:32.084312",
+        "last_reminded": "2026-05-09 12:26:03.405127"
+    },
+    {
+        "from": "Akshatha S",
+        "chat_id": 1493901729,
+        "message": "Pick up items to bring., Pick up chocolates, chips, and cold drinks, and remind Renu that guests are coming for the cricket match evening today.",
+        "original_message": "hi Bring some items",
+        "status": "PENDING",
+        "priority": "CRITICAL",
+        "created_at": "2026-05-09 00:18:24.127411",
+        "last_reminded": "2026-05-09 12:26:03.407614"
+    },
+    {
+        "from": "Akshatha S",
+        "chat_id": 1493901729,
+        "message": "\"Pick up chocolates, chips, and cold drinks, and inform Renu that guests are coming for the cricket match tonight, then head home.\"",
+        "original_message": "bring some chocolates,  chips and cold drinks guests will be coming and today is cricket match evening. Inform renu about this Nothing else come home soon",
+        "status": "PENDING",
+        "priority": "CRITICAL",
+        "created_at": "2026-05-09 00:20:12.542513",
+        "last_reminded": "2026-05-09 12:26:03.410345"
+    },
+    {
+        "from": "Akshatha S",
+        "chat_id": 1493901729,
+        "message": "\"Pick up chocolates, chips, and cold drinks, invite Renu, and remind them to be home by 7pm for the cricket match evening with guests.\"",
+        "original_message": "bring some chocolates,  chips and cold drinks guests will be coming and today is cricket match evening. Inform renu about this Nothing else come home soon Ask him to be at home by 7pm max.",
+        "status": "PENDING",
+        "priority": "CRITICAL",
+        "created_at": "2026-05-09 00:20:47.358754",
+        "last_reminded": "2026-05-09 12:26:03.413168"
+    },
+    {
+        "from": "Akshatha S",
+        "chat_id": 1493901729,
+        "message": "Remind him to be home by 7pm tonight.",
+        "original_message": "Nothing else come home soon Ask him to be at home by 7pm max. Yes Thank you You are such a great help",
+        "status": "PENDING",
+        "priority": "CRITICAL",
+        "created_at": "2026-05-09 00:21:21.586652",
+        "last_reminded": "2026-05-09 12:26:03.415324"
+    },
+    {
+        "from": "Akshatha S",
+        "chat_id": 1493901729,
+        "message": "Remind him to be home by 7pm.",
+        "original_message": "Nothing else come home soon Ask him to be at home by 7pm max. Yes Thank you You are such a great help Thats all. Love you",
+        "status": "PENDING",
+        "priority": "CRITICAL",
+        "created_at": "2026-05-09 00:21:46.426454",
+        "last_reminded": null
+    },
+    {
+        "from": "Akshatha S",
+        "chat_id": 1493901729,
+        "message": "Ask him to be home by 7pm.",
+        "original_message": "Ask him to be at home by 7pm max. Yes Thank you You are such a great help Thats all. Love you Bye",
+        "status": "PENDING",
+        "priority": "CRITICAL",
+        "created_at": "2026-05-09 00:22:27.613911",
+        "last_reminded": null
     }
 ]

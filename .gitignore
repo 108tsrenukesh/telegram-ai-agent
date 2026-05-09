@@ -28,3 +28,5 @@ Thumbs.db
 
 __pycache__/
 *.pyc
+
+conversation_state.json

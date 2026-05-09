@@ -1,11 +1,15 @@
 import os
 import json
 import logging
+import asyncio
+
+from datetime import datetime
 
 from dotenv import load_dotenv
 
 from telethon import TelegramClient
 from telethon.sessions import StringSession
+from telethon import Button
 
 from telegram import Bot
 
@@ -16,7 +20,34 @@ from intent_engine import detect_intent
 from memory_manager import (
     add_task,
     get_pending_tasks,
-    load_contacts
+    load_contacts,
+    extract_task,
+    update_last_reminded,
+    task_exists,
+    load_tasks,
+    save_tasks,
+    complete_task
+)
+
+from conversation_memory import (
+    get_chat_state,
+    update_chat_state,
+    clear_chat_state,
+    set_conversation_state,
+    is_conversation_active
+)
+
+from assistant_reply_generator import (
+    generate_assistant_reply
+)
+
+from clarification_engine import (
+    needs_clarification,
+    generate_clarification_reply
+)
+
+from conversation_phase import (
+    determine_phase
 )
 
 
@@ -42,7 +73,7 @@ SESSION_STRING = os.getenv(
 
 
 # =====================================
-# Logging Config
+# Logging
 # =====================================
 
 logging.basicConfig(
@@ -57,6 +88,27 @@ logging.getLogger(
 logging.getLogger(
     "telethon"
 ).setLevel(logging.WARNING)
+
+
+# =====================================
+# Silent Hours
+# =====================================
+
+def is_silent_hours():
+
+    current_hour = (
+        datetime.now().hour
+    )
+
+    return (
+        current_hour >= 1
+        and current_hour <= 7
+    )
+
+
+async def human_delay():
+
+    await asyncio.sleep(2)
 
 
 # =====================================
@@ -76,7 +128,7 @@ PROCESSED_FILE = (
 
 
 # =====================================
-# Processed Messages Helpers
+# Processed Message Helpers
 # =====================================
 
 def load_processed_messages():
@@ -110,7 +162,40 @@ def save_processed_messages(data):
 
 
 # =====================================
-# Telethon Client
+# Update Existing Task
+# =====================================
+
+def update_existing_task(
+    existing_task,
+    new_items
+):
+
+    tasks = load_tasks()
+
+    for task in tasks:
+
+        if task["message"] == existing_task:
+
+            # Avoid duplicate appends
+
+            if (
+                new_items.lower()
+                not in
+                task["message"].lower()
+            ):
+
+                task["message"] += (
+                    ", "
+                    + new_items
+                )
+
+            break
+
+    save_tasks(tasks)
+
+
+# =====================================
+# Telegram Client
 # =====================================
 
 client = TelegramClient(
@@ -121,7 +206,7 @@ client = TelegramClient(
 
 
 # =====================================
-# Main Processing Logic
+# Main Logic
 # =====================================
 
 async def process_messages():
@@ -157,12 +242,66 @@ async def process_messages():
             start=1
         ):
 
+            created_at = datetime.fromisoformat(
+                task["created_at"]
+            )
+
+            hours_old = (
+                datetime.now() - created_at
+            ).total_seconds() / 3600
+
+            if hours_old > 72:
+
+                task["priority"] = (
+                    "CRITICAL"
+                )
+
+            elif hours_old > 48:
+
+                task["priority"] = (
+                    "URGENT"
+                )
+
+            elif hours_old > 24:
+
+                task["priority"] = (
+                    "HIGH"
+                )
+
+            if task["priority"] == (
+                "CRITICAL"
+            ):
+
+                reminder_prefix = "🚨"
+
+            elif task["priority"] == (
+                "URGENT"
+            ):
+
+                reminder_prefix = "⚠️"
+
+            else:
+
+                reminder_prefix = "📌"
+
             reminder_text += (
-                f"{index}. "
-                f"[TASK ID: {index - 1}] "
+                f"#{index} • "
+                f"{reminder_prefix} "
+                f"[{task['priority']}]\n"
                 f"{task['message']}\n"
                 f"From: {task['from']}\n\n"
             )
+
+            update_last_reminded(
+                index - 1
+            )
+
+        reminder_text += (
+            "\n✅ To complete:\n"
+            "done 1\n"
+            "completed 2\n"
+            "finished 3"
+        )
 
         await bot.send_message(
             chat_id=ADMIN_USER_ID,
@@ -176,10 +315,6 @@ async def process_messages():
     dialogs = await client.get_dialogs()
 
     for dialog in dialogs:
-
-        # =================================
-        # Skip unwanted chats
-        # =================================
 
         if dialog.is_channel:
             continue
@@ -213,25 +348,44 @@ async def process_messages():
             f"{dialog.name}"
         )
 
-        # =================================
-        # Fetch recent messages
-        # =================================
-
-        messages = (
-            await client.get_messages(
-                dialog.id,
-                limit=20
-            )
+        messages = await client.get_messages(
+            dialog.id,
+            limit=dialog.unread_count
         )
 
         if not messages:
             continue
 
-        latest_message = messages[0]
+        incoming_messages = []
+
+        latest_message_id = None
+
+        for msg in reversed(messages):
+
+            if not msg:
+                continue
+
+            if msg.out:
+                continue
+
+            latest_message_id = msg.id
+
+            if msg.message:
+
+                incoming_messages.append(
+                    msg.message
+                )
+
+        if not incoming_messages:
+            continue
+
+        message_text = " ".join(
+            incoming_messages
+        )[:2000]
 
         chat_id = str(dialog.id)
 
-        message_id = latest_message.id
+        message_id = latest_message_id
 
         last_processed = (
             processed.get(chat_id)
@@ -239,165 +393,277 @@ async def process_messages():
 
         if last_processed == message_id:
 
-            logging.info(
-                "Message already processed"
-            )
-
-            continue
-
-        # =================================
-        # Build combined conversation
-        # =================================
-
-        combined_messages = []
-
-        for msg in reversed(messages):
-
-            if not msg:
-                continue
-
-            if msg.message:
-
-                combined_messages.append(
-                    msg.message
-                )
-
-            elif msg.gif:
-
-                combined_messages.append(
-                    "[GIF]"
-                )
-
-            elif msg.sticker:
-
-                combined_messages.append(
-                    "[STICKER]"
-                )
-
-            elif msg.photo:
-
-                combined_messages.append(
-                    "[PHOTO]"
-                )
-
-        message_text = " ".join(
-            combined_messages
-        )[:2000]
-
-        if not message_text:
             continue
 
         logging.info(
-            f"Combined message: "
+            f"Incoming unread context: "
             f"{message_text}"
         )
-
-        # =================================
-        # Relationship Detection
-        # =================================
 
         relationship = contacts.get(
             dialog.name,
             "GENERAL"
         )
 
-        logging.info(
-            f"Relationship: {relationship}"
+        chat_state = get_chat_state(
+            dialog.id
         )
-
-        # =================================
-        # Intent Detection
-        # =================================
 
         intent = detect_intent(
             message_text
         )
 
+        phase = determine_phase(
+            intent,
+            message_text
+        )
+
         logging.info(
-            f"Intent detected: {intent}"
+            f"Intent: {intent}"
+        )
+
+        logging.info(
+            f"Phase: {phase}"
         )
 
         # =================================
-        # TASK Intent
+        # Active Conversation Window
         # =================================
 
-        if intent == "TASK":
+        conversation_active = (
+            is_conversation_active(
+                dialog.id
+            )
+        )
 
-            task = {
+        is_followup = (
 
-                "from": dialog.name,
+            conversation_active
 
-                "chat_id": dialog.id,
+            and
 
-                "message": message_text,
+            chat_state.get(
+                "active_task"
+            )
 
-                "status": "PENDING"
+        )
 
-            }
+        # =================================
+        # TASK / FOLLOWUP TASK
+        # =================================
 
-            add_task(task)
+        if intent in [
+            "TASK",
+            "FOLLOWUP_TASK"
+        ]:
 
-            if relationship == "FAMILY":
+            clean_task = extract_task(
+                message_text
+            )
 
-                assistant_reply = (
-                    "Hello, this is Lucifer, "
-                    "Renukesh's AI assistant. "
-                    "He is currently unavailable. "
-                    "I'll remind Renukesh "
-                    "about this."
+            clarification_needed = (
+                needs_clarification(
+                    clean_task
+                )
+            )
+
+            priority = "NORMAL"
+
+            if relationship == "WIFE":
+
+                priority = "CRITICAL"
+
+            elif relationship == "FAMILY":
+
+                priority = "HIGH"
+
+            elif relationship == "BOSS":
+
+                priority = "URGENT"
+
+            # =============================
+            # FOLLOWUP UPDATE
+            # =============================
+
+            if is_followup:
+
+                existing_task = (
+                    chat_state.get(
+                        "active_task",
+                        ""
+                    )
                 )
 
-            elif relationship == "FRIEND":
-
-                assistant_reply = (
-                    "Hey! Lucifer here, "
-                    "Renukesh's AI assistant. "
-                    "He is currently unavailable. "
-                    "I'll remind him about this."
+                update_existing_task(
+                    existing_task,
+                    clean_task
                 )
 
-            elif relationship == "WIFE":
+                updated_task = (
+                    existing_task
+                    + ", "
+                    + clean_task
+                )
+
+                update_chat_state(
+
+                    dialog.id,
+
+                    {
+
+                        "awaiting_clarification":
+                        clarification_needed,
+
+                        "active_task":
+                        updated_task
+
+                    }
+
+                )
+
+                clean_task = updated_task
+
+            else:
+
+                if not task_exists(clean_task):
+
+                    task = {
+
+                        "from": dialog.name,
+
+                        "chat_id": dialog.id,
+
+                        "message": clean_task,
+
+                        "original_message":
+                        message_text,
+
+                        "status": "PENDING",
+
+                        "priority": priority,
+
+                        "created_at": str(
+                            datetime.now()
+                        ),
+
+                        "last_reminded":
+                        None
+                    }
+
+                    add_task(task)
+
+                update_chat_state(
+
+                    dialog.id,
+
+                    {
+
+                        "awaiting_clarification":
+                        clarification_needed,
+
+                        "active_task":
+                        clean_task
+
+                    }
+
+                )
+
+            # =============================
+            # Generate Reply
+            # =============================
+
+            if clarification_needed:
 
                 assistant_reply = (
-                    "Hey Akshatha ❤️ "
-                    "Lucifer here. "
-                    "Got it, "
-                    "I'll remind Renukesh."
+                    generate_clarification_reply(
+                        relationship,
+                        clean_task
+                    )
                 )
 
             else:
 
                 assistant_reply = (
-                    "Hello, this is Lucifer, "
-                    "Renukesh's AI assistant. "
-                    "He is currently unavailable. "
-                    "I'll remind him about this."
+                    generate_assistant_reply(
+                        relationship,
+                        intent,
+                        message_text,
+                        phase
+                    )
                 )
 
             try:
 
-                await client.send_message(
-                    entity=dialog.id,
-                    message=assistant_reply
-                )
+                if not is_silent_hours():
 
-                logging.info(
-                    "Task acknowledgement sent"
-                )
+                    await human_delay()
+
+                    if clarification_needed:
+
+                        await client.send_message(
+                            entity=dialog.id,
+                            message=assistant_reply,
+                            reply_to=latest_message_id,
+                            buttons=Button.force_reply(
+                                single_use=True,
+                                placeholder="Reply here..."
+                            )
+                        )
+
+                    else:
+
+                        await client.send_message(
+                            entity=dialog.id,
+                            message=assistant_reply,
+                            reply_to=latest_message_id
+                        )
 
             except Exception as e:
 
                 logging.exception(e)
 
-            await bot.send_message(
-                chat_id=ADMIN_USER_ID,
-                text=(
-                    f"📌 New Task Created\n\n"
-                    f"From: {dialog.name}\n\n"
-                    f"Message:\n"
-                    f"{message_text}"
-                )
+        # =================================
+        # TASK COMPLETION
+        # =================================
+
+        elif intent == "TASK_COMPLETION":
+
+            completed = complete_task(
+                message_text
             )
+
+            if completed:
+
+                reply = (
+                    "Perfect ❤️ "
+                    "I've marked it completed."
+                )
+
+                clear_chat_state(
+                    dialog.id
+                )
+
+            else:
+
+                reply = (
+                    "I couldn't find that task."
+                )
+
+            try:
+
+                if not is_silent_hours():
+
+                    await human_delay()
+
+                    await client.send_message(
+                        entity=dialog.id,
+                        message=reply,
+                        reply_to=latest_message_id
+                    )
+
+            except Exception as e:
+
+                logging.exception(e)
 
         # =================================
         # STATUS CHECK
@@ -406,35 +672,94 @@ async def process_messages():
         elif intent == "STATUS_CHECK":
 
             assistant_reply = (
-                "Renukesh is currently "
-                "unavailable. "
-                "I'll check and update you."
+                generate_assistant_reply(
+                    relationship,
+                    intent,
+                    message_text,
+                    phase
+                )
             )
 
             try:
 
-                await client.send_message(
-                    entity=dialog.id,
-                    message=assistant_reply
-                )
+                if not is_silent_hours():
 
-                logging.info(
-                    "Status acknowledgement sent"
-                )
+                    await human_delay()
+
+                    await client.send_message(
+                        entity=dialog.id,
+                        message=assistant_reply,
+                        reply_to=latest_message_id
+                    )
 
             except Exception as e:
 
                 logging.exception(e)
 
-            await bot.send_message(
-                chat_id=ADMIN_USER_ID,
-                text=(
-                    f"❓ Status Check Message\n\n"
-                    f"From: {dialog.name}\n\n"
-                    f"Message:\n"
-                    f"{message_text}"
+        # =================================
+        # ACKNOWLEDGEMENT
+        # =================================
+
+        elif intent == "ACKNOWLEDGEMENT":
+
+            assistant_reply = (
+                generate_assistant_reply(
+                    relationship,
+                    intent,
+                    message_text,
+                    phase
                 )
             )
+
+            try:
+
+                if not is_silent_hours():
+
+                    await human_delay()
+
+                    await client.send_message(
+                        entity=dialog.id,
+                        message=assistant_reply,
+                        reply_to=latest_message_id
+                    )
+
+            except Exception as e:
+
+                logging.exception(e)
+
+        # =================================
+        # EMOTIONAL / CLOSURE
+        # =================================
+
+        elif intent in [
+            "EMOTIONAL",
+            "CLOSURE"
+        ]:
+
+            assistant_reply = (
+                generate_assistant_reply(
+                    relationship,
+                    intent,
+                    message_text,
+                    phase
+                )
+            )
+
+            try:
+
+                if not is_silent_hours():
+
+                    await human_delay()
+
+                    await client.send_message(
+                        entity=dialog.id,
+                        message=assistant_reply,
+                        reply_to=latest_message_id
+                    )
+
+            except Exception as e:
+
+                logging.exception(e)
 
         # =================================
         # GENERAL
@@ -443,7 +768,7 @@ async def process_messages():
         else:
 
             logging.info(
-                "Generating AI draft..."
+                "Manual attention required"
             )
 
             try:
@@ -452,12 +777,10 @@ async def process_messages():
                     message_text
                 )
 
-            except Exception as e:
-
-                logging.exception(e)
+            except Exception:
 
                 ai_reply = (
-                    "Unable to generate draft"
+                    "Unable to generate reply."
                 )
 
             notification_text = f"""
@@ -478,11 +801,9 @@ async def process_messages():
                 text=notification_text
             )
 
-        # =================================
-        # Save Processed Message
-        # =================================
-
-        processed[chat_id] = message_id
+        processed[chat_id] = (
+            message_id
+        )
 
         save_processed_messages(
             processed
@@ -490,7 +811,7 @@ async def process_messages():
 
 
 # =====================================
-# Run Script
+# Run
 # =====================================
 
 with client:
