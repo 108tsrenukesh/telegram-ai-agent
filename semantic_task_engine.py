@@ -1,5 +1,4 @@
 import json
-import re
 
 from deadline_engine import (
     extract_deadline
