@@ -1,6 +1,3 @@
-import re
-
-
 def normalize_item(text):
 
     text = text.lower().strip()
