@@ -6,10 +6,9 @@ from datetime import datetime
 
 from ai_router import generate_reply
 
-logger = logging.getLogger(__name__)
+from config import TASKS_FILE, CONTACTS_FILE
 
-TASKS_FILE = "tasks.json"
-CONTACTS_FILE = "contacts.json"
+logger = logging.getLogger(__name__)
 
 
 # =====================================
