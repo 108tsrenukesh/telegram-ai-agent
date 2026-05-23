@@ -1,16 +1,12 @@
 import json
+import logging
 
-from ai_router import (
-    generate_reply
-)
+from ai_router import generate_reply
+
+logger = logging.getLogger(__name__)
 
 
-def resolve_entities(
-
-    message,
-    pending_entities
-
-):
+def resolve_entities(message, pending_entities):
 
     prompt = f"""
 
@@ -42,19 +38,28 @@ Format:
 
     try:
 
-        response = generate_reply(
-            prompt
+        response = generate_reply(prompt)
+
+        parsed = json.loads(response)
+
+        return parsed.get("resolved", [])
+
+    except json.JSONDecodeError:
+
+        logger.exception(
+            "resolve_entities JSON parse failed "
+            "[message=%s pending=%s]",
+            message, pending_entities
         )
 
-        parsed = json.loads(
-            response
-        )
-
-        return parsed.get(
-            "resolved",
-            []
-        )
+        return []
 
     except Exception:
+
+        logger.exception(
+            "resolve_entities failed "
+            "[message=%s pending=%s]",
+            message, pending_entities
+        )
 
         return []
