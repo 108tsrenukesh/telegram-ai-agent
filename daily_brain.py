@@ -1,112 +1,67 @@
-from semantic_task_engine import (
-    load_tasks
-)
+import logging
 
-from relationship_memory import (
-    load_relationship_memory
-)
+from semantic_task_engine import load_tasks
+from relationship_memory import load_relationship_memory
+
+logger = logging.getLogger(__name__)
 
 
 def generate_brain_summary():
 
     tasks = load_tasks()
-
-    relationships = (
-        load_relationship_memory()
-    )
+    relationships = load_relationship_memory()
 
     pending = []
     completed = []
 
     for task in tasks:
 
-        if task["status"] == "COMPLETED":
-
+        if task.get("status") == "COMPLETED":
             completed.append(task)
-
         else:
-
             pending.append(task)
 
     summary = []
 
-    summary.append(
-        "🧠 Lucifer Daily Brain\n"
-    )
-
-    summary.append(
-        f"Pending Tasks: {len(pending)}"
-    )
-
-    summary.append(
-        f"Completed Tasks: {len(completed)}\n"
-    )
+    summary.append("🧠 Lucifer Daily Brain\n")
+    summary.append(f"Pending Tasks: {len(pending)}")
+    summary.append(f"Completed Tasks: {len(completed)}\n")
 
     # =========================
-    # Frequent Topics
+    # Relationship Insights
     # =========================
 
-    summary.append(
-        "📌 Relationship Insights:\n"
-    )
+    summary.append("📌 Relationship Insights:\n")
 
     for person, data in relationships.items():
 
-        topics = data.get(
-            "topics",
-            []
-        )[:3]
-
-        interactions = data.get(
-            "interaction_count",
-            0
-        )
+        topics = data.get("topics", [])[:3]
+        interactions = data.get("interaction_count", 0)
 
         summary.append(
-
-            f"- {person}: "
-            f"{interactions} interactions"
-
+            f"- {person}: {interactions} interactions"
         )
 
         if topics:
-
             summary.append(
-                f"  Topics: "
-                f"{', '.join(topics)}"
+                f"  Topics: {', '.join(topics)}"
             )
 
     # =========================
-    # Pending Important Tasks
+    # Important Pending Tasks
     # =========================
 
-    summary.append(
-        "\n⚠️ Important Pending:\n"
-    )
+    summary.append("\n⚠️ Important Pending:\n")
 
     for task in pending[:5]:
 
-        task_type = task.get(
-            "type",
-            "GENERAL"
-        )
-
-        priority = task.get(
-            "priority",
-            "NORMAL"
-        )
-
-        items = task.get(
-            "items",
-            []
-        )
+        task_type = task.get("type", "GENERAL")
+        priority = task.get("priority", "NORMAL")
+        items = task.get("items", [])
 
         summary.append(
-
-            f"- [{priority}] "
-            f"{task_type}: "
+            f"- [{priority}] {task_type}: "
             f"{', '.join(items[:3])}"
-
         )
 
     return "\n".join(summary)
