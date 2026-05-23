@@ -276,7 +276,7 @@ async def process_messages():
 
     for task in tasks:
 
-        if task["status"] != "PENDING":
+        if task.get("status") != "PENDING":
 
             continue
 
@@ -319,7 +319,7 @@ async def process_messages():
 
             if task.get("items"):
 
-                for item in task["items"]:
+                for item in task.get("items", []):
 
                     items_text += (
                         f"- {item}\n"
@@ -329,12 +329,12 @@ async def process_messages():
 
                 f"{reminder_prefix} "
                 f"[{priority}] "
-                f"{task['type']}\n\n"
+                f"{task.get('type', 'GENERAL')}\n\n"
 
                 f"{items_text}\n"
 
                 f"From: "
-                f"{task['from']}\n\n"
+                f"{task.get('from', 'Unknown')}\n\n"
 
             )
 
@@ -627,6 +627,7 @@ async def process_messages():
                             )
                         )
                                 
+                        latest_task.setdefault("items", [])
                         latest_task["items"] = (
                             merge_items(
                                 latest_task.get("items", []),
