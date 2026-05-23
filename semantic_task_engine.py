@@ -5,9 +5,9 @@ from datetime import datetime
 
 from deadline_engine import extract_deadline
 
-logger = logging.getLogger(__name__)
+from config import TASKS_FILE as TASK_FILE
 
-TASK_FILE = "tasks.json"
+logger = logging.getLogger(__name__)
 
 
 def load_tasks():
