@@ -1,4 +1,8 @@
+import logging
+
 from ai_router import generate_reply
+
+logger = logging.getLogger(__name__)
 
 
 def generate_assistant_reply(
@@ -6,8 +10,8 @@ def generate_assistant_reply(
     relationship,
     intent,
     message,
-    phase = None,
-    conversation_context = None
+    phase=None,
+    conversation_context=None
 
 ):
 
@@ -102,20 +106,16 @@ Generate ONLY the final reply.
             prompt
         ).strip()
 
-        # =========================
-        # Remove Quotes
-        # =========================
-
-        reply = reply.replace(
-            '"',
-            ""
-        )
+        reply = reply.replace('"', "")
 
         return reply
 
     except Exception:
 
-        return (
-            "Lucifer here ❤️ "
-            "Got it."
+        logger.exception(
+            "generate_assistant_reply failed "
+            "[relationship=%s intent=%s phase=%s]",
+            relationship, intent, phase
         )
+
+        return "Lucifer here ❤️ Got it."
