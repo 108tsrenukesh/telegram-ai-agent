@@ -13,8 +13,6 @@ from telethon import Button
 
 from telegram import Bot
 
-from ai_router import generate_reply
-
 from intent_engine import detect_intent
 
 from memory_manager import (
@@ -41,7 +39,6 @@ from conversation_memory import (
     get_chat_state,
     update_chat_state,
     clear_chat_state,
-    set_conversation_state,
     is_conversation_active
 )
 
