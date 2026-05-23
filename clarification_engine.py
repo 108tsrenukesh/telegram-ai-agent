@@ -1,4 +1,8 @@
+import logging
+
 from ai_router import generate_reply
+
+logger = logging.getLogger(__name__)
 
 
 # =====================================
@@ -63,6 +67,11 @@ NO
         return result == "YES"
 
     except Exception:
+
+        logger.exception(
+            "needs_clarification failed [message=%s]",
+            message
+        )
 
         return False
 
@@ -137,6 +146,12 @@ Generate ONLY the reply message.
         return reply
 
     except Exception:
+
+        logger.exception(
+            "generate_clarification_reply failed "
+            "[relationship=%s task=%s]",
+            relationship, task
+        )
 
         return (
             "Could you share a few more details "
