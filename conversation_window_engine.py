@@ -5,6 +5,48 @@ from ai_router import generate_reply
 
 logger = logging.getLogger(__name__)
 
+MAX_RETRIES = 3
+
+
+def _strip_json_fences(text):
+    """Strip markdown code fences LLMs sometimes wrap JSON in."""
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        # Remove opening fence (```json or ```)
+        lines = lines[1:] if lines[0].startswith("```") else lines
+        # Remove closing fence
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    return text
+
+
+def _validate_windows(parsed):
+    """
+    Validate schema:
+    {
+        "windows": [
+            {"messages": ["str", ...]}
+        ]
+    }
+    Returns True if valid, False otherwise.
+    """
+    if not isinstance(parsed, dict):
+        return False
+    windows = parsed.get("windows")
+    if not isinstance(windows, list):
+        return False
+    for window in windows:
+        if not isinstance(window, dict):
+            return False
+        msgs = window.get("messages")
+        if not isinstance(msgs, list):
+            return False
+        if not all(isinstance(m, str) for m in msgs):
+            return False
+    return True
+
 
 def build_conversation_windows(messages):
 
@@ -27,7 +69,7 @@ Rules:
 Messages:
 {json.dumps(messages, indent=2)}
 
-Return ONLY valid JSON.
+Return ONLY valid JSON. No explanation. No markdown fences.
 
 Format:
 
@@ -44,30 +86,47 @@ Format:
 
 """
 
-    try:
+    fallback = [{"messages": messages}]
 
-        response = generate_reply(prompt)
+    for attempt in range(1, MAX_RETRIES + 1):
 
-        parsed = json.loads(response)
+        try:
 
-        return parsed.get("windows", [])
+            response = generate_reply(prompt)
+            cleaned = _strip_json_fences(response)
+            parsed = json.loads(cleaned)
 
-    except json.JSONDecodeError:
+            if not _validate_windows(parsed):
+                logger.warning(
+                    "build_conversation_windows schema invalid "
+                    "[attempt=%d response=%s]",
+                    attempt, cleaned[:200]
+                )
+                continue
 
-        logger.exception(
-            "build_conversation_windows JSON parse failed "
-            "[messages=%s]",
-            messages
-        )
+            return parsed.get("windows", fallback)
 
-        return [{"messages": messages}]
+        except json.JSONDecodeError:
 
-    except Exception:
+            logger.warning(
+                "build_conversation_windows JSON parse failed "
+                "[attempt=%d/%d response=%s]",
+                attempt, MAX_RETRIES, response[:200]
+            )
 
-        logger.exception(
-            "build_conversation_windows failed "
-            "[messages=%s]",
-            messages
-        )
+        except Exception:
 
-        return [{"messages": messages}]
+            logger.exception(
+                "build_conversation_windows unexpected error "
+                "[attempt=%d/%d messages=%s]",
+                attempt, MAX_RETRIES, messages
+            )
+            break
+
+    logger.error(
+        "build_conversation_windows failed after %d attempts "
+        "— using fallback single window [messages=%s]",
+        MAX_RETRIES, messages
+    )
+
+    return fallback
