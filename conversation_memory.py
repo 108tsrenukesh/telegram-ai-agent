@@ -3,9 +3,9 @@ import logging
 
 from datetime import datetime, timedelta
 
-logger = logging.getLogger(__name__)
+from config import CONVERSATION_STATE_FILE as MEMORY_FILE
 
-MEMORY_FILE = "conversation_state.json"
+logger = logging.getLogger(__name__)
 
 
 def load_memory():
