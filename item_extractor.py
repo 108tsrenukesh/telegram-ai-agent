@@ -5,6 +5,38 @@ from ai_router import generate_reply
 
 logger = logging.getLogger(__name__)
 
+MAX_RETRIES = 3
+
+
+def _strip_json_fences(text):
+    """Strip markdown code fences LLMs sometimes wrap JSON in."""
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        lines = lines[1:] if lines[0].startswith("```") else lines
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+    return text
+
+
+def _validate_items(parsed):
+    """
+    Validate schema:
+    {
+        "items": ["str", ...]
+    }
+    Returns True if valid, False otherwise.
+    """
+    if not isinstance(parsed, dict):
+        return False
+    items = parsed.get("items")
+    if not isinstance(items, list):
+        return False
+    if not all(isinstance(item, str) for item in items):
+        return False
+    return True
+
 
 def extract_items_semantically(text):
 
@@ -22,6 +54,8 @@ Rules:
 - Remove conversational text
 - Normalize items
 - Return ONLY valid JSON
+- No markdown fences
+- No explanation
 
 Format:
 
@@ -35,29 +69,48 @@ Format:
 
 """
 
-    try:
+    for attempt in range(1, MAX_RETRIES + 1):
 
-        response = generate_reply(prompt)
+        try:
 
-        parsed = json.loads(response)
+            response = generate_reply(prompt)
+            cleaned = _strip_json_fences(response)
+            parsed = json.loads(cleaned)
 
-        return parsed.get("items", [])
+            if not _validate_items(parsed):
+                logger.warning(
+                    "extract_items_semantically schema invalid "
+                    "[attempt=%d response=%s]",
+                    attempt, cleaned[:200]
+                )
+                continue
 
-    except json.JSONDecodeError:
+            items = parsed.get("items", [])
 
-        logger.exception(
-            "extract_items_semantically JSON parse failed "
-            "[text=%s]",
-            text
-        )
+            # Filter out empty strings
+            return [item for item in items if item.strip()]
 
-        return []
+        except json.JSONDecodeError:
 
-    except Exception:
+            logger.warning(
+                "extract_items_semantically JSON parse failed "
+                "[attempt=%d/%d response=%s]",
+                attempt, MAX_RETRIES, response[:200]
+            )
 
-        logger.exception(
-            "extract_items_semantically failed [text=%s]",
-            text
-        )
+        except Exception:
 
-        return []
+            logger.exception(
+                "extract_items_semantically unexpected error "
+                "[attempt=%d/%d text=%s]",
+                attempt, MAX_RETRIES, text
+            )
+            break
+
+    logger.error(
+        "extract_items_semantically failed after %d attempts "
+        "— returning empty [text=%s]",
+        MAX_RETRIES, text
+    )
+
+    return []
