@@ -1,9 +1,9 @@
 import json
 import logging
 
-logger = logging.getLogger(__name__)
+from config import RELATIONSHIP_MEMORY_FILE as MEMORY_FILE
 
-MEMORY_FILE = "relationship_memory.json"
+logger = logging.getLogger(__name__)
 
 
 def load_relationship_memory():
