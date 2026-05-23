@@ -1,37 +1,44 @@
-from datetime import (
-    datetime,
-    timedelta
-)
+import logging
+
+from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 
-def calculate_next_reminder(
-    task
-):
+def calculate_next_reminder(task):
 
-    priority = task.get(
-        "priority",
-        "NORMAL"
-    )
+    priority = task.get("priority", "NORMAL")
 
-    created_at = datetime.fromisoformat(
-        task["created_at"]
-    )
+    created_at_raw = task.get("created_at")
 
-    if priority == "CRITICAL":
+    if not created_at_raw:
 
-        return (
-            created_at
-            + timedelta(hours=1)
+        logger.warning(
+            "calculate_next_reminder: task missing 'created_at' "
+            "[task_id=%s] — defaulting to now",
+            task.get("id", "unknown")
         )
 
-    if priority == "URGENT":
+        created_at = datetime.now()
 
-        return (
-            created_at
-            + timedelta(hours=1)
-        )
+    else:
 
-    return (
-        created_at
-        + timedelta(hours=2)
-    )
+        try:
+
+            created_at = datetime.fromisoformat(created_at_raw)
+
+        except Exception:
+
+            logger.exception(
+                "calculate_next_reminder: failed to parse 'created_at' "
+                "[task_id=%s created_at=%s] — defaulting to now",
+                task.get("id", "unknown"), created_at_raw
+            )
+
+            created_at = datetime.now()
+
+    if priority in ("CRITICAL", "URGENT"):
+
+        return created_at + timedelta(hours=1)
+
+    return created_at + timedelta(hours=2)
