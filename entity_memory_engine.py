@@ -1,9 +1,9 @@
 import json
 import logging
 
-logger = logging.getLogger(__name__)
+from config import ENTITY_MEMORY_FILE as ENTITY_FILE
 
-ENTITY_FILE = "entity_memory.json"
+logger = logging.getLogger(__name__)
 
 
 def load_entity_memory():
