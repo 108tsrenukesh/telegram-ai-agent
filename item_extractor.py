@@ -1,13 +1,12 @@
 import json
+import logging
 
-from ai_router import (
-    generate_reply
-)
+from ai_router import generate_reply
+
+logger = logging.getLogger(__name__)
 
 
-def extract_items_semantically(
-    text
-):
+def extract_items_semantically(text):
 
     prompt = f"""
 
@@ -38,19 +37,27 @@ Format:
 
     try:
 
-        response = generate_reply(
-            prompt
+        response = generate_reply(prompt)
+
+        parsed = json.loads(response)
+
+        return parsed.get("items", [])
+
+    except json.JSONDecodeError:
+
+        logger.exception(
+            "extract_items_semantically JSON parse failed "
+            "[text=%s]",
+            text
         )
 
-        parsed = json.loads(
-            response
-        )
-
-        return parsed.get(
-            "items",
-            []
-        )
+        return []
 
     except Exception:
+
+        logger.exception(
+            "extract_items_semantically failed [text=%s]",
+            text
+        )
 
         return []
