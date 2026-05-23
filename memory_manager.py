@@ -1,12 +1,14 @@
 import json
+import logging
 import os
+
 from datetime import datetime
 
 from ai_router import generate_reply
 
+logger = logging.getLogger(__name__)
 
 TASKS_FILE = "tasks.json"
-
 CONTACTS_FILE = "contacts.json"
 
 
@@ -16,22 +18,22 @@ CONTACTS_FILE = "contacts.json"
 
 def load_tasks():
 
-    if not os.path.exists(
-        TASKS_FILE
-    ):
+    if not os.path.exists(TASKS_FILE):
 
         return []
 
     try:
 
-        with open(
-            TASKS_FILE,
-            "r"
-        ) as file:
+        with open(TASKS_FILE, "r") as file:
 
             return json.load(file)
 
     except Exception:
+
+        logger.exception(
+            "load_tasks failed [file=%s]",
+            TASKS_FILE
+        )
 
         return []
 
@@ -40,20 +42,16 @@ def save_tasks(tasks):
 
     try:
 
-        with open(
-            TASKS_FILE,
-            "w"
-        ) as file:
+        with open(TASKS_FILE, "w") as file:
 
-            json.dump(
-                tasks,
-                file,
-                indent=4
-            )
+            json.dump(tasks, file, indent=4)
 
     except Exception:
 
-        pass
+        logger.exception(
+            "save_tasks failed [file=%s]",
+            TASKS_FILE
+        )
 
 
 # =====================================
@@ -99,13 +97,16 @@ Reply ONLY with the task.
 
     try:
 
-        task = generate_reply(
-            prompt
-        ).strip()
+        task = generate_reply(prompt).strip()
 
         return task
 
     except Exception:
+
+        logger.exception(
+            "extract_task failed [message=%s]",
+            message
+        )
 
         return message
 
@@ -120,18 +121,9 @@ def task_exists(task_message):
 
     for task in tasks:
 
-        existing_message = (
-            task.get(
-                "message",
-                ""
-            ).lower()
-        )
+        existing_message = task.get("message", "").lower()
 
-        if (
-            existing_message
-            ==
-            task_message.lower()
-        ):
+        if existing_message == task_message.lower():
 
             return True
 
@@ -142,56 +134,26 @@ def add_task(task):
 
     tasks = load_tasks()
 
-    task.setdefault(
-        "created_at",
-        str(datetime.now())
-    )
-
-    task.setdefault(
-        "updated_at",
-        str(datetime.now())
-    )
-
-    task.setdefault(
-        "status",
-        "PENDING"
-    )
-
-    task.setdefault(
-        "priority",
-        "NORMAL"
-    )
+    task.setdefault("created_at", str(datetime.now()))
+    task.setdefault("updated_at", str(datetime.now()))
+    task.setdefault("status", "PENDING")
+    task.setdefault("priority", "NORMAL")
 
     tasks.append(task)
 
     save_tasks(tasks)
 
 
-def update_last_reminded(
-    task_index
-):
+def update_last_reminded(task_index):
 
     tasks = load_tasks()
 
-    if (
-        task_index
-        >=
-        len(tasks)
-    ):
+    if task_index >= len(tasks):
 
         return
 
-    tasks[task_index][
-        "last_reminded"
-    ] = str(
-        datetime.now()
-    )
-
-    tasks[task_index][
-        "updated_at"
-    ] = str(
-        datetime.now()
-    )
+    tasks[task_index]["last_reminded"] = str(datetime.now())
+    tasks[task_index]["updated_at"] = str(datetime.now())
 
     save_tasks(tasks)
 
@@ -218,56 +180,25 @@ def complete_task(identifier):
 
     updated = False
 
-    if isinstance(
-        identifier,
-        int
-    ):
+    if isinstance(identifier, int):
 
-        if (
-            identifier
-            <
-            len(tasks)
-        ):
+        if identifier < len(tasks):
 
-            tasks[identifier][
-                "status"
-            ] = "COMPLETED"
-
-            tasks[identifier][
-                "updated_at"
-            ] = str(
-                datetime.now()
-            )
+            tasks[identifier]["status"] = "COMPLETED"
+            tasks[identifier]["updated_at"] = str(datetime.now())
 
             updated = True
 
-    elif isinstance(
-        identifier,
-        str
-    ):
+    elif isinstance(identifier, str):
 
         for task in tasks:
 
-            task_message = (
-                task.get(
-                    "message",
-                    ""
-                ).lower()
-            )
+            task_message = task.get("message", "").lower()
 
-            if (
-                identifier.lower()
-                in
-                task_message
-            ):
+            if identifier.lower() in task_message:
 
-                task["status"] = (
-                    "COMPLETED"
-                )
-
-                task["updated_at"] = str(
-                    datetime.now()
-                )
+                task["status"] = "COMPLETED"
+                task["updated_at"] = str(datetime.now())
 
                 updated = True
 
@@ -286,19 +217,10 @@ def get_pending_tasks():
 
     tasks = load_tasks()
 
-    pending = []
-
-    for task in tasks:
-
-        if (
-            task.get("status")
-            ==
-            "PENDING"
-        ):
-
-            pending.append(task)
-
-    return pending
+    return [
+        task for task in tasks
+        if task.get("status") == "PENDING"
+    ]
 
 
 # =====================================
@@ -307,21 +229,21 @@ def get_pending_tasks():
 
 def load_contacts():
 
-    if not os.path.exists(
-        CONTACTS_FILE
-    ):
+    if not os.path.exists(CONTACTS_FILE):
 
         return {}
 
     try:
 
-        with open(
-            CONTACTS_FILE,
-            "r"
-        ) as file:
+        with open(CONTACTS_FILE, "r") as file:
 
             return json.load(file)
 
     except Exception:
+
+        logger.exception(
+            "load_contacts failed [file=%s]",
+            CONTACTS_FILE
+        )
 
         return {}
