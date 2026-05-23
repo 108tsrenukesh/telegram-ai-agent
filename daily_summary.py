@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from semantic_task_engine import (
     load_tasks
 )
