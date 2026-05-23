@@ -1,8 +1,9 @@
 import json
+import logging
 
-from ai_router import (
-    generate_reply
-)
+from ai_router import generate_reply
+
+logger = logging.getLogger(__name__)
 
 
 def extract_entities(message):
@@ -44,19 +45,26 @@ Statuses:
 
     try:
 
-        response = generate_reply(
-            prompt
+        response = generate_reply(prompt)
+
+        parsed = json.loads(response)
+
+        return parsed.get("entities", [])
+
+    except json.JSONDecodeError:
+
+        logger.exception(
+            "extract_entities JSON parse failed [message=%s]",
+            message
         )
 
-        parsed = json.loads(
-            response
-        )
-
-        return parsed.get(
-            "entities",
-            []
-        )
+        return []
 
     except Exception:
+
+        logger.exception(
+            "extract_entities failed [message=%s]",
+            message
+        )
 
         return []
