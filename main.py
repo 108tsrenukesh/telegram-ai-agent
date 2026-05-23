@@ -189,6 +189,8 @@ def load_processed_messages():
 
     except Exception:
 
+        logging.exception("load_processed_messages failed")
+
         return {}
 
 
@@ -997,6 +999,12 @@ async def process_messages():
                     )
         
                 except Exception:
+        
+                    logging.exception(
+                        "generate_assistant_reply failed in GENERAL block "
+                        "[dialog=%s message=%s]",
+                        dialog.name, message_text
+                    )
         
                     ai_reply = (
                         "Unable to generate reply."
