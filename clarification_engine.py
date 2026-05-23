@@ -42,8 +42,11 @@ NO
 
 
 def generate_clarification_reply(
+
     relationship,
-    message
+    task,
+    conversation_context=None
+
 ):
 
     prompt = f"""

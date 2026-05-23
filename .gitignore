@@ -1,32 +1,43 @@
-# Python virtual env
+# Virtual environments
+
 venv/
 .venv/
 
 # Environment variables
+
 .env
 
-# Telethon session files
+# Telethon sessions
+
 *.session
 
-# Processed message state
+# Runtime memory/state
+
 processed_messages.json
+conversation_state.json
+relationship_memory.json
+tasks.json
+pending_replies.json
 
 # Logs
+
 logs/
 *.log
 
 # Python cache
-__pycache__/
+
+**pycache**/
 *.pyc
 
-# VS Code settings
+# Notebook cache
+
+.ipynb_checkpoints/
+
+# VS Code
+
 .vscode/
 
 # OS files
+
 .DS_Store
 Thumbs.db
-
-__pycache__/
-*.pyc
-
-conversation_state.json

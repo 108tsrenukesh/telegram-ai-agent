@@ -2,10 +2,13 @@ from ai_router import generate_reply
 
 
 def generate_assistant_reply(
+
     relationship,
     intent,
     message,
-    phase="normal"
+    phase = None,
+    conversation_context = None
+
 ):
 
     prompt = f"""
@@ -24,6 +27,9 @@ Conversation Phase:
 Incoming message:
 {message}
 
+Conversation Context:
+{conversation_context}
+
 Core Personality:
 - warm
 - human
@@ -32,6 +38,7 @@ Core Personality:
 - natural
 - conversational
 - NEVER robotic
+- conversation context
 
 VERY IMPORTANT:
 - Do NOT repeat full task details repeatedly

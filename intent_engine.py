@@ -16,6 +16,7 @@ Classify this Telegram message into ONLY one category:
 - EMOTIONAL
 - FOLLOWUP_TASK
 - CLOSURE
+- CORRECTION
 
 Rules:
 
@@ -72,6 +73,17 @@ CLOSURE:
 - okay thanks
 - good night
 
+CORRECTION:
+- wrong
+- incorrect
+- I never said that
+- not this
+- not milk
+- not eggs
+- who said this
+- no that's wrong
+- misunderstanding
+
 Message:
 {message}
 
@@ -90,10 +102,11 @@ Reply ONLY with category name.
             "STATUS_CHECK",
             "GENERAL",
             "ACKNOWLEDGEMENT",
-	    "TASK_COMPLETION",
-	    "EMOTIONAL",
-	    "FOLLOWUP_TASK",
-	    "CLOSURE"
+    	    "TASK_COMPLETION",
+    	    "EMOTIONAL",
+    	    "FOLLOWUP_TASK",
+    	    "CLOSURE",
+            "CORRECTION"
 
         ]
 
