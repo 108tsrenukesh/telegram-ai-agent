@@ -1,13 +1,12 @@
 import json
+import logging
 
-from ai_router import (
-    generate_reply
-)
+from ai_router import generate_reply
+
+logger = logging.getLogger(__name__)
 
 
-def build_conversation_windows(
-    messages
-):
+def build_conversation_windows(messages):
 
     prompt = f"""
 
@@ -47,25 +46,28 @@ Format:
 
     try:
 
-        response = generate_reply(
-            prompt
+        response = generate_reply(prompt)
+
+        parsed = json.loads(response)
+
+        return parsed.get("windows", [])
+
+    except json.JSONDecodeError:
+
+        logger.exception(
+            "build_conversation_windows JSON parse failed "
+            "[messages=%s]",
+            messages
         )
 
-        parsed = json.loads(
-            response
-        )
-
-        return parsed.get(
-            "windows",
-            []
-        )
+        return [{"messages": messages}]
 
     except Exception:
 
-        return [
+        logger.exception(
+            "build_conversation_windows failed "
+            "[messages=%s]",
+            messages
+        )
 
-            {
-                "messages": messages
-            }
-
-        ]
+        return [{"messages": messages}]
