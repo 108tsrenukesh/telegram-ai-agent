@@ -1,4 +1,8 @@
+import logging
+
 from ai_router import generate_reply
+
+logger = logging.getLogger(__name__)
 
 
 def detect_intent(message):
@@ -90,32 +94,39 @@ Message:
 Reply ONLY with category name.
 """
 
+    allowed = [
+        "TASK",
+        "STATUS_CHECK",
+        "GENERAL",
+        "ACKNOWLEDGEMENT",
+        "TASK_COMPLETION",
+        "EMOTIONAL",
+        "FOLLOWUP_TASK",
+        "CLOSURE",
+        "CORRECTION"
+    ]
+
     try:
 
         result = generate_reply(
             prompt
         ).strip().upper()
 
-        allowed = [
-
-            "TASK",
-            "STATUS_CHECK",
-            "GENERAL",
-            "ACKNOWLEDGEMENT",
-    	    "TASK_COMPLETION",
-    	    "EMOTIONAL",
-    	    "FOLLOWUP_TASK",
-    	    "CLOSURE",
-            "CORRECTION"
-
-        ]
-
         if result in allowed:
 
             return result
 
+        logger.warning(
+            "detect_intent returned unexpected value "
+            "[result=%s message=%s] — defaulting to GENERAL",
+            result, message
+        )
+
     except Exception:
 
-        pass
+        logger.exception(
+            "detect_intent failed [message=%s]",
+            message
+        )
 
     return "GENERAL"
