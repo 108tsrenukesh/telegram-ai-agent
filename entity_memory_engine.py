@@ -1,52 +1,52 @@
 import json
+import logging
 
+logger = logging.getLogger(__name__)
 
-ENTITY_FILE = (
-    "entity_memory.json"
-)
+ENTITY_FILE = "entity_memory.json"
 
 
 def load_entity_memory():
 
     try:
 
-        with open(
-            ENTITY_FILE,
-            "r"
-        ) as file:
+        with open(ENTITY_FILE, "r") as file:
 
             return json.load(file)
 
+    except FileNotFoundError:
+
+        return {}
+
     except Exception:
+
+        logger.exception(
+            "load_entity_memory failed [file=%s]",
+            ENTITY_FILE
+        )
 
         return {}
 
 
 def save_entity_memory(data):
 
-    with open(
-        ENTITY_FILE,
-        "w"
-    ) as file:
+    try:
 
-        json.dump(
-            data,
-            file,
-            indent=4
+        with open(ENTITY_FILE, "w") as file:
+
+            json.dump(data, file, indent=4)
+
+    except Exception:
+
+        logger.exception(
+            "save_entity_memory failed [file=%s]",
+            ENTITY_FILE
         )
 
 
-def update_entity(
+def update_entity(chat_id, entity, status):
 
-    chat_id,
-    entity,
-    status
-
-):
-
-    memory = (
-        load_entity_memory()
-    )
+    memory = load_entity_memory()
 
     chat_id = str(chat_id)
 
@@ -61,9 +61,7 @@ def update_entity(
 
 def get_pending_entities(chat_id):
 
-    memory = (
-        load_entity_memory()
-    )
+    memory = load_entity_memory()
 
     chat_id = str(chat_id)
 
@@ -73,9 +71,7 @@ def get_pending_entities(chat_id):
 
     pending = []
 
-    for entity, status in memory[
-        chat_id
-    ].items():
+    for entity, status in memory[chat_id].items():
 
         if status != "COMPLETE":
 
@@ -84,27 +80,17 @@ def get_pending_entities(chat_id):
     return pending
 
 
-def complete_entity(
+def complete_entity(chat_id, entity):
 
-    chat_id,
-    entity
-
-):
-
-    memory = (
-        load_entity_memory()
-    )
+    memory = load_entity_memory()
 
     chat_id = str(chat_id)
 
     if (
         chat_id in memory
-        and
-        entity in memory[chat_id]
+        and entity in memory[chat_id]
     ):
 
-        memory[chat_id][
-            entity
-        ] = "COMPLETE"
+        memory[chat_id][entity] = "COMPLETE"
 
     save_entity_memory(memory)
