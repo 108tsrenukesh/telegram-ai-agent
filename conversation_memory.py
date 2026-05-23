@@ -1,42 +1,48 @@
 import json
+import logging
 
-from datetime import (
-    datetime,
-    timedelta
-)
+from datetime import datetime, timedelta
 
-MEMORY_FILE = (
-    "conversation_state.json"
-)
+logger = logging.getLogger(__name__)
+
+MEMORY_FILE = "conversation_state.json"
 
 
 def load_memory():
 
     try:
 
-        with open(
-            MEMORY_FILE,
-            "r"
-        ) as file:
+        with open(MEMORY_FILE, "r") as file:
 
             return json.load(file)
 
+    except FileNotFoundError:
+
+        return {}
+
     except Exception:
+
+        logger.exception(
+            "load_memory failed [file=%s]",
+            MEMORY_FILE
+        )
 
         return {}
 
 
 def save_memory(data):
 
-    with open(
-        MEMORY_FILE,
-        "w"
-    ) as file:
+    try:
 
-        json.dump(
-            data,
-            file,
-            indent=4
+        with open(MEMORY_FILE, "w") as file:
+
+            json.dump(data, file, indent=4)
+
+    except Exception:
+
+        logger.exception(
+            "save_memory failed [file=%s]",
+            MEMORY_FILE
         )
 
 
@@ -44,26 +50,15 @@ def get_chat_state(chat_id):
 
     memory = load_memory()
 
-    return memory.get(
-        str(chat_id),
-        {}
-    )
+    return memory.get(str(chat_id), {})
 
 
-def update_chat_state(
-    chat_id,
-    state
-):
+def update_chat_state(chat_id, state):
 
     memory = load_memory()
 
-    # =========================
-    # Auto Active Window
-    # =========================
-
     state["active_until"] = (
-        datetime.now()
-        + timedelta(hours=1)
+        datetime.now() + timedelta(hours=1)
     ).isoformat()
 
     memory[str(chat_id)] = state
@@ -82,10 +77,7 @@ def clear_chat_state(chat_id):
     save_memory(memory)
 
 
-def set_conversation_state(
-    chat_id,
-    state_name
-):
+def set_conversation_state(chat_id, state_name):
 
     memory = load_memory()
 
@@ -93,31 +85,20 @@ def set_conversation_state(
 
         memory[str(chat_id)] = {}
 
-    memory[str(chat_id)][
-        "conversation_state"
-    ] = state_name
+    memory[str(chat_id)]["conversation_state"] = state_name
 
-    memory[str(chat_id)][
-        "active_until"
-    ] = (
-        datetime.now()
-        + timedelta(hours=2)
+    memory[str(chat_id)]["active_until"] = (
+        datetime.now() + timedelta(hours=2)
     ).isoformat()
 
     save_memory(memory)
 
 
-def is_conversation_active(
-    chat_id
-):
+def is_conversation_active(chat_id):
 
-    state = get_chat_state(
-        chat_id
-    )
+    state = get_chat_state(chat_id)
 
-    active_until = state.get(
-        "active_until"
-    )
+    active_until = state.get("active_until")
 
     if not active_until:
 
@@ -125,14 +106,16 @@ def is_conversation_active(
 
     try:
 
-        expiry = datetime.fromisoformat(
-            active_until
-        )
+        expiry = datetime.fromisoformat(active_until)
 
-        return (
-            datetime.now() < expiry
-        )
+        return datetime.now() < expiry
 
     except Exception:
+
+        logger.exception(
+            "is_conversation_active failed parsing expiry "
+            "[chat_id=%s active_until=%s]",
+            chat_id, active_until
+        )
 
         return False
