@@ -4,20 +4,39 @@ from ai_router import generate_reply
 def needs_clarification(message):
 
     prompt = f"""
-You are an AI assistant.
+You are an intelligent conversational reasoning engine.
 
-Determine whether this request lacks enough clarity.
+Determine whether the following request lacks enough clarity
+for Renukesh to properly act on it.
+
+Rules:
+- Think like a human assistant
+- Only ask clarification if truly necessary
+- Avoid over-asking questions
+- If task is reasonably understandable, say NO
+- If critical details are missing, say YES
 
 Examples needing clarification:
 - bring medicines
 - buy items
 - get groceries
 - pick something
+- bring dress
+- pick something
+- get something
+- people came
+- people will come
+- today is match
 
 Examples NOT needing clarification:
 - bring Crocin and flowers
 - buy milk and bread
 - call me at 5 PM
+- buy baby diapers and snacks
+- get vegetables and fruits
+- my friends <friend_names> will come
+- my friends <friend_names> came
+- today is RCB vs GT match
 
 Message:
 {message}
@@ -56,34 +75,54 @@ Renukesh's personal AI assistant.
 Relationship:
 {relationship}
 
-Message:
-{message}
+Conversation Context:
+{conversation_context}
 
-The request lacks clarity.
+Incoming Request:
+{task}
 
-Ask a polite follow-up question.
+The request lacks some important details.
+
+Your task:
+Ask a natural conversational follow-up question.
 
 Rules:
-- Sound human
-- Sound warm
-- Ask concise questions
-- Ask for missing details naturally
-- Mention Lucifer naturally
+- Sound warm and human
 - Never sound robotic
+- Keep reply concise
+- Avoid over-explaining
+- Ask only what is genuinely missing
+- Behave like a smart executive assistant
+- Maintain conversational continuity
+- Avoid generic "please provide details"
+- Use relationship-aware tone
 
-Generate ONLY the reply.
+Tone Guidance:
+- Wife → warm, caring, natural
+- Boss → concise, professional
+- Friend → casual
+- Family → supportive
+
+Examples:
+- Which medicines should I note down?
+- Sure ❤️ What all should I add to the grocery list?
+- Got it. Which sarees would she prefer?
+- Okay, what time should I remind him?
+
+Generate ONLY the reply message.
 """
 
     try:
 
-        return generate_reply(
+        reply = generate_reply(
             prompt
         ).strip()
+
+        return reply
 
     except Exception:
 
         return (
-            "Could you please share "
-            "a few more details so I "
-            "can inform Renukesh properly?"
+            "Could you share a few more details "
+            "so I can inform Renukesh properly?"
         )

@@ -1,64 +1,18 @@
 import json
 import os
-from ai_router import generate_reply
 from datetime import datetime
+
+from ai_router import generate_reply
+
 
 TASKS_FILE = "tasks.json"
 
+CONTACTS_FILE = "contacts.json"
 
-def update_last_reminded(
-    task_index
-):
 
-    tasks = load_tasks()
-
-    tasks[task_index][
-        "last_reminded"
-    ] = str(
-        datetime.now()
-    )
-
-    save_tasks(tasks)
-
-def complete_task(task_text):
-
-    tasks = load_tasks()
-
-    updated = False
-
-    for task in tasks:
-
-        if (
-            task_text.lower()
-            in
-            task["message"].lower()
-        ):
-
-            task["status"] = (
-                "COMPLETED"
-            )
-
-            updated = True
-
-    save_tasks(tasks)
-
-    return updated
-
-def task_exists(task_message):
-
-    tasks = load_tasks()
-
-    for task in tasks:
-
-        if (
-            task["message"].lower()
-            ==
-            task_message.lower()
-        ):
-
-            return True
-
-    return False
+# =====================================
+# TASK FILE HELPERS
+# =====================================
 
 def load_tasks():
 
@@ -68,17 +22,76 @@ def load_tasks():
 
         return []
 
-    with open(
-        TASKS_FILE,
-        "r"
-    ) as file:
+    try:
 
-        return json.load(file)
+        with open(
+            TASKS_FILE,
+            "r"
+        ) as file:
+
+            return json.load(file)
+
+    except Exception:
+
+        return []
+
+
+def save_tasks(tasks):
+
+    try:
+
+        with open(
+            TASKS_FILE,
+            "w"
+        ) as file:
+
+            json.dump(
+                tasks,
+                file,
+                indent=4
+            )
+
+    except Exception:
+
+        pass
+
+
+# =====================================
+# TASK EXTRACTION
+# =====================================
 
 def extract_task(message):
 
     prompt = f"""
-Convert this Telegram message into a clean actionable task.
+You are a semantic task extraction engine.
+
+Convert the following Telegram message into a concise,
+clean, actionable task.
+
+Rules:
+- Remove emotional text
+- Remove greetings
+- Remove filler words
+- Keep actionable meaning
+- Keep important context
+- Make task concise
+- Sound natural
+- Read, Understand and Respond like Humans
+- Understand the tone and emotion of the message
+
+Examples:
+
+Input:
+"Please buy milk and bread while coming"
+
+Output:
+"Buy milk and bread"
+
+Input:
+"Hey love ❤️ don't forget baby medicines"
+
+Output:
+"Buy baby medicines"
 
 Message:
 {message}
@@ -98,30 +111,165 @@ Reply ONLY with the task.
 
         return message
 
-def complete_task(task_index):
+
+# =====================================
+# TASK HELPERS
+# =====================================
+
+def task_exists(task_message):
 
     tasks = load_tasks()
 
-    if task_index < len(tasks):
+    for task in tasks:
 
-        tasks[task_index][
-            "status"
-        ] = "COMPLETED"
-
-        save_tasks(tasks)
-
-def save_tasks(tasks):
-
-    with open(
-        TASKS_FILE,
-        "w"
-    ) as file:
-
-        json.dump(
-            tasks,
-            file,
-            indent=4
+        existing_message = (
+            task.get(
+                "message",
+                ""
+            ).lower()
         )
+
+        if (
+            existing_message
+            ==
+            task_message.lower()
+        ):
+
+            return True
+
+    return False
+
+
+def add_task(task):
+
+    tasks = load_tasks()
+
+    task.setdefault(
+        "created_at",
+        str(datetime.now())
+    )
+
+    task.setdefault(
+        "updated_at",
+        str(datetime.now())
+    )
+
+    task.setdefault(
+        "status",
+        "PENDING"
+    )
+
+    task.setdefault(
+        "priority",
+        "NORMAL"
+    )
+
+    tasks.append(task)
+
+    save_tasks(tasks)
+
+
+def update_last_reminded(
+    task_index
+):
+
+    tasks = load_tasks()
+
+    if (
+        task_index
+        >=
+        len(tasks)
+    ):
+
+        return
+
+    tasks[task_index][
+        "last_reminded"
+    ] = str(
+        datetime.now()
+    )
+
+    tasks[task_index][
+        "updated_at"
+    ] = str(
+        datetime.now()
+    )
+
+    save_tasks(tasks)
+
+
+# =====================================
+# TASK COMPLETION
+# =====================================
+
+def complete_task(task_text):
+
+    tasks = load_tasks()
+
+    updated = False
+
+    for task in tasks:
+
+        task_message = (
+            task.get(
+                "message",
+                ""
+            ).lower()
+        )
+
+        if (
+            task_text.lower()
+            in
+            task_message
+        ):
+
+            task["status"] = (
+                "COMPLETED"
+            )
+
+            task["updated_at"] = str(
+                datetime.now()
+            )
+
+            updated = True
+
+    save_tasks(tasks)
+
+    return updated
+
+
+def complete_task_by_index(
+    task_index
+):
+
+    tasks = load_tasks()
+
+    if (
+        task_index
+        >=
+        len(tasks)
+    ):
+
+        return False
+
+    tasks[task_index][
+        "status"
+    ] = "COMPLETED"
+
+    tasks[task_index][
+        "updated_at"
+    ] = str(
+        datetime.now()
+    )
+
+    save_tasks(tasks)
+
+    return True
+
+
+# =====================================
+# PENDING TASKS
+# =====================================
 
 def get_pending_tasks():
 
@@ -131,14 +279,20 @@ def get_pending_tasks():
 
     for task in tasks:
 
-        if task["status"] == "PENDING":
+        if (
+            task.get("status")
+            ==
+            "PENDING"
+        ):
 
             pending.append(task)
 
     return pending
 
-CONTACTS_FILE = "contacts.json"
 
+# =====================================
+# CONTACTS
+# =====================================
 
 def load_contacts():
 
@@ -148,17 +302,15 @@ def load_contacts():
 
         return {}
 
-    with open(
-        CONTACTS_FILE,
-        "r"
-    ) as file:
+    try:
 
-        return json.load(file)
+        with open(
+            CONTACTS_FILE,
+            "r"
+        ) as file:
 
-def add_task(task):
+            return json.load(file)
 
-    tasks = load_tasks()
+    except Exception:
 
-    tasks.append(task)
-
-    save_tasks(tasks)
+        return {}
