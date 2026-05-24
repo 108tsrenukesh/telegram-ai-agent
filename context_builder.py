@@ -1,49 +1,53 @@
-from semantic_task_engine import (
-    load_tasks
-)
+import logging
 
-from entity_memory_engine import (
-    get_pending_entities
-)
+from semantic_task_engine import load_tasks
+
+from entity_memory_engine import get_pending_entities
+
+logger = logging.getLogger(__name__)
 
 
-def build_conversation_context(
-
-    chat_id,
-    sender_name
-
-):
-
-    tasks = load_tasks()
+def build_conversation_context(chat_id, sender_name):
 
     active_tasks = []
 
-    for task in tasks:
+    try:
 
-        if (
-            task.get("from")
-            == sender_name
-            and
-            task.get("status")
-            == "PENDING"
-        ):
+        tasks = load_tasks()
 
-            active_tasks.append(task)
+        for task in tasks:
 
-    pending_entities = (
-        get_pending_entities(
-            chat_id
+            if (
+                task.get("from") == sender_name
+                and
+                task.get("status") == "PENDING"
+            ):
+
+                active_tasks.append(task)
+
+    except Exception:
+
+        logger.exception(
+            "build_conversation_context: load_tasks failed "
+            "[chat_id=%s sender=%s] — using empty task list",
+            chat_id, sender_name
         )
-    )
 
-    context = {
+    pending_entities = []
 
-        "active_tasks":
-        active_tasks,
+    try:
 
-        "pending_entities":
-        pending_entities
+        pending_entities = get_pending_entities(chat_id)
 
+    except Exception:
+
+        logger.exception(
+            "build_conversation_context: get_pending_entities failed "
+            "[chat_id=%s sender=%s] — using empty entity list",
+            chat_id, sender_name
+        )
+
+    return {
+        "active_tasks": active_tasks,
+        "pending_entities": pending_entities
     }
-
-    return context
