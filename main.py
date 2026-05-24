@@ -102,19 +102,43 @@ from entity_resolution_engine import (
 
 load_dotenv()
 
+
+# =====================================
+# ENV VALIDATION — fail fast with
+# a clear message if any var is missing
+# =====================================
+
+_REQUIRED_ENV = [
+    "API_ID",
+    "API_HASH",
+    "BOT_TOKEN",
+    "ADMIN_USER_ID",
+    "SESSION_STRING",
+]
+
+_missing = [k for k in _REQUIRED_ENV if not os.getenv(k)]
+
+if _missing:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s"
+    )
+    logging.critical(
+        "Missing required environment variables: %s — "
+        "add them to your .env file and restart.",
+        ", ".join(_missing)
+    )
+    raise SystemExit(1)
+
 API_ID = int(os.getenv("API_ID"))
 
 API_HASH = os.getenv("API_HASH")
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-ADMIN_USER_ID = int(
-    os.getenv("ADMIN_USER_ID")
-)
+ADMIN_USER_ID = int(os.getenv("ADMIN_USER_ID"))
 
-SESSION_STRING = os.getenv(
-    "SESSION_STRING"
-)
+SESSION_STRING = os.getenv("SESSION_STRING")
 
 
 # =====================================
@@ -167,9 +191,7 @@ bot = Bot(token=BOT_TOKEN)
 # Files
 # =====================================
 
-PROCESSED_FILE = (
-    "processed_messages.json"
-)
+from config import PROCESSED_MESSAGES_FILE as PROCESSED_FILE
 
 
 # =====================================
@@ -196,15 +218,26 @@ def load_processed_messages():
 
 def save_processed_messages(data):
 
-    with open(
-        PROCESSED_FILE,
-        "w"
-    ) as file:
+    try:
 
-        json.dump(
-            data,
-            file,
-            indent=4
+        with open(
+            PROCESSED_FILE,
+            "w"
+        ) as file:
+
+            json.dump(
+                data,
+                file,
+                indent=4
+            )
+
+    except Exception:
+
+        logging.exception(
+            "save_processed_messages failed — "
+            "messages may be reprocessed on next run "
+            "[file=%s]",
+            PROCESSED_FILE
         )
 
 
@@ -451,7 +484,7 @@ async def process_messages():
         for window in conversation_windows:
         
             message_text = " ".join(
-                window["messages"]
+                window.get("messages", [])
             ).strip()
         
             if not message_text:
@@ -541,9 +574,9 @@ async def process_messages():
             
                         dialog.id,
             
-                        entity["name"],
+                        entity.get("name", ""),
             
-                        entity["status"]
+                        entity.get("status", "MISSING_DETAILS")
             
                     )
                     
