@@ -114,6 +114,8 @@ _REQUIRED_ENV = [
     "BOT_TOKEN",
     "ADMIN_USER_ID",
     "SESSION_STRING",
+    "GROQ_API_KEY",
+    "GEMINI_API_KEY",
 ]
 
 _missing = [k for k in _REQUIRED_ENV if not os.getenv(k)]
@@ -130,13 +132,13 @@ if _missing:
     )
     raise SystemExit(1)
 
-API_ID = int(os.getenv("API_ID"))
+API_ID = int(os.getenv("API_ID", "0"))
 
 API_HASH = os.getenv("API_HASH")
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-ADMIN_USER_ID = int(os.getenv("ADMIN_USER_ID"))
+ADMIN_USER_ID = int(os.getenv("ADMIN_USER_ID", "0"))
 
 SESSION_STRING = os.getenv("SESSION_STRING")
 
@@ -570,15 +572,27 @@ async def process_messages():
             
                 for entity in entities:
             
-                    update_entity(
-            
-                        dialog.id,
-            
-                        entity.get("name", ""),
-            
-                        entity.get("status", "MISSING_DETAILS")
-            
-                    )
+                    entity_name = entity.get("name", "").strip()
+
+                    if not entity_name:
+
+                        logging.warning(
+                            "Skipping entity with empty name "
+                            "[dialog=%s] — likely malformed LLM output",
+                            dialog.name
+                        )
+
+                    else:
+
+                        update_entity(
+
+                            dialog.id,
+
+                            entity_name,
+
+                            entity.get("status", "MISSING_DETAILS")
+
+                        )
                     
                 pending_entities = (
                     get_pending_entities(
