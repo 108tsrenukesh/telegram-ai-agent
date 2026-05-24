@@ -2,24 +2,10 @@ import json
 import logging
 
 from ai_router import generate_reply
+from config import LLM_MAX_RETRIES, LLM_LOG_TRUNCATE
+from utils import strip_json_fences
 
 logger = logging.getLogger(__name__)
-
-MAX_RETRIES = 3
-
-
-def _strip_json_fences(text):
-    """Strip markdown code fences LLMs sometimes wrap JSON in."""
-    text = text.strip()
-    if text.startswith("```"):
-        lines = text.splitlines()
-        # Remove opening fence (```json or ```)
-        lines = lines[1:] if lines[0].startswith("```") else lines
-        # Remove closing fence
-        if lines and lines[-1].strip() == "```":
-            lines = lines[:-1]
-        text = "\n".join(lines).strip()
-    return text
 
 
 def _validate_windows(parsed):
@@ -88,19 +74,19 @@ Format:
 
     fallback = [{"messages": messages}]
 
-    for attempt in range(1, MAX_RETRIES + 1):
+    for attempt in range(1, LLM_MAX_RETRIES + 1):
 
         try:
 
             response = generate_reply(prompt)
-            cleaned = _strip_json_fences(response)
+            cleaned = strip_json_fences(response)
             parsed = json.loads(cleaned)
 
             if not _validate_windows(parsed):
                 logger.warning(
                     "build_conversation_windows schema invalid "
                     "[attempt=%d response=%s]",
-                    attempt, cleaned[:200]
+                    attempt, cleaned[:LLM_LOG_TRUNCATE]
                 )
                 continue
 
@@ -111,7 +97,7 @@ Format:
             logger.warning(
                 "build_conversation_windows JSON parse failed "
                 "[attempt=%d/%d response=%s]",
-                attempt, MAX_RETRIES, response[:200]
+                attempt, LLM_MAX_RETRIES, response[:LLM_LOG_TRUNCATE]
             )
 
         except Exception:
@@ -119,14 +105,14 @@ Format:
             logger.exception(
                 "build_conversation_windows unexpected error "
                 "[attempt=%d/%d messages=%s]",
-                attempt, MAX_RETRIES, messages
+                attempt, LLM_MAX_RETRIES, messages
             )
             break
 
     logger.error(
         "build_conversation_windows failed after %d attempts "
         "— using fallback single window [messages=%s]",
-        MAX_RETRIES, messages
+        LLM_MAX_RETRIES, messages
     )
 
     return fallback
