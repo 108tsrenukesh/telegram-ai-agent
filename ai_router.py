@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 
@@ -8,6 +9,8 @@ from groq import Groq
 from google import genai
 
 from templates import TEMPLATES
+
+logger = logging.getLogger(__name__)
 
 
 # =====================================
@@ -76,14 +79,16 @@ Message:
 
         if reply:
 
-            print("Reply generated using GROQ")
+            logger.info("Reply generated via Groq")
 
             return reply.strip()
 
-    except Exception as e:
+    except Exception:
 
-        print("GROQ FAILED")
-        print(e)
+        logger.exception(
+            "Groq failed [prompt_length=%d]",
+            len(prompt)
+        )
 
     # =====================================
     # SECONDARY AI → GEMINI
@@ -100,19 +105,25 @@ Message:
 
         if reply:
 
-            print("Reply generated using GEMINI")
+            logger.info("Reply generated via Gemini (Groq fallback)")
 
             return reply.strip()
 
-    except Exception as e:
+    except Exception:
 
-        print("GEMINI FAILED")
-        print(e)
+        logger.exception(
+            "Gemini failed [prompt_length=%d]",
+            len(prompt)
+        )
 
     # =====================================
     # FINAL FALLBACK → TEMPLATE
     # =====================================
 
-    print("Using template fallback")
+    logger.warning(
+        "Both Groq and Gemini failed — using template fallback "
+        "[prompt_length=%d]",
+        len(prompt)
+    )
 
     return random.choice(TEMPLATES)
