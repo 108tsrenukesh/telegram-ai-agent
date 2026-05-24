@@ -1,16 +1,34 @@
-def determine_phase(
-    intent,
-    message
-):
+def determine_phase(intent, message):
 
     text = message.lower()
 
     # =========================
+    # Emotional Signals
+    # Check FIRST — takes priority
+    # over closure for phrases like
+    # "take care ❤️" or "miss you, tc"
+    # =========================
+
+    emotional_words = [
+        "love you",
+        "miss you",
+        "❤️",
+        "😘",
+        "take care",
+    ]
+
+    if any(word in text for word in emotional_words):
+
+        return "emotional"
+
+    # =========================
     # Closure Signals
+    # Checked AFTER emotional —
+    # "take care" alone is emotional,
+    # pure goodbyes land here
     # =========================
 
     closure_words = [
-
         "bye",
         "good night",
         "that's all",
@@ -19,37 +37,20 @@ def determine_phase(
         "thank you",
         "thanks",
         "tc",
-	"see you",
-	"cya",
-	"ttyl",
-	"talk later",
-	"got to go",
-        "take care"
-
+        "see you",
+        "cya",
+        "ttyl",
+        "talk later",
+        "got to go",
     ]
 
-    emotional_words = [
-
-        "love you",
-        "miss you",
-        "❤️",
-        "😘"
-
-    ]
-
-    if any(
-        word in text
-        for word in closure_words
-    ):
+    if any(word in text for word in closure_words):
 
         return "closing"
 
-    if any(
-        word in text
-        for word in emotional_words
-    ):
-
-        return "emotional"
+    # =========================
+    # Task Phases
+    # =========================
 
     if intent == "FOLLOWUP_TASK":
 
