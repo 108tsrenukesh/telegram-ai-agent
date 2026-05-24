@@ -1,9 +1,9 @@
+import logging
 import re
 
-from datetime import (
-    datetime,
-    timedelta
-)
+from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 
 def extract_deadline(text):
@@ -13,7 +13,7 @@ def extract_deadline(text):
     now = datetime.now()
 
     # =========================
-    # Today 7 PM
+    # Today X AM/PM
     # =========================
 
     match = re.search(
@@ -23,37 +23,46 @@ def extract_deadline(text):
 
     if match:
 
-        hour = int(
-            match.group(1)
-        )
+        try:
 
-        meridian = match.group(2)
+            hour = int(match.group(1))
+            meridian = match.group(2)
 
-        if meridian == "pm" and hour != 12:
+            if meridian == "pm" and hour != 12:
+                hour += 12
 
-            hour += 12
+            if meridian == "am" and hour == 12:
+                hour = 0
 
-        if meridian == "am" and hour == 12:
+            if not 0 <= hour <= 23:
+                logger.warning(
+                    "extract_deadline: hour out of range "
+                    "[hour=%d text=%s] — skipping time parse",
+                    hour, text
+                )
 
-            hour = 0
+            else:
 
-        deadline = now.replace(
+                deadline = now.replace(
+                    hour=hour,
+                    minute=0,
+                    second=0,
+                    microsecond=0
+                )
 
-            hour=hour,
-            minute=0,
-            second=0,
-            microsecond=0
+                # If already passed today, move to tomorrow
+                if deadline < now:
+                    deadline += timedelta(days=1)
 
-        )
+                return deadline.isoformat()
 
-        # If already passed today
-        # move to tomorrow
+        except (ValueError, AttributeError):
 
-        if deadline < now:
-
-            deadline += timedelta(days=1)
-
-        return deadline.isoformat()
+            logger.exception(
+                "extract_deadline: failed to parse time "
+                "[text=%s]",
+                text
+            )
 
     # =========================
     # Tomorrow
@@ -61,18 +70,24 @@ def extract_deadline(text):
 
     if "tomorrow" in lower:
 
-        deadline = now + timedelta(days=1)
+        try:
 
-        deadline = deadline.replace(
+            deadline = (now + timedelta(days=1)).replace(
+                hour=9,
+                minute=0,
+                second=0,
+                microsecond=0
+            )
 
-            hour=9,
-            minute=0,
-            second=0,
-            microsecond=0
+            return deadline.isoformat()
 
-        )
+        except (ValueError, OverflowError):
 
-        return deadline.isoformat()
+            logger.exception(
+                "extract_deadline: failed to parse 'tomorrow' "
+                "[text=%s]",
+                text
+            )
 
     # =========================
     # Tonight
@@ -80,15 +95,23 @@ def extract_deadline(text):
 
     if "tonight" in lower:
 
-        deadline = now.replace(
+        try:
 
-            hour=20,
-            minute=0,
-            second=0,
-            microsecond=0
+            deadline = now.replace(
+                hour=20,
+                minute=0,
+                second=0,
+                microsecond=0
+            )
 
-        )
+            return deadline.isoformat()
 
-        return deadline.isoformat()
+        except (ValueError, OverflowError):
+
+            logger.exception(
+                "extract_deadline: failed to parse 'tonight' "
+                "[text=%s]",
+                text
+            )
 
     return None
