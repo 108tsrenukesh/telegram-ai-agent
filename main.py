@@ -18,7 +18,9 @@ from intent_engine import detect_intent
 from memory_manager import (
     load_contacts,
     extract_task,
-    complete_task
+    complete_task,
+    task_exists,
+    update_last_reminded
 )
 
 from semantic_task_engine import (
@@ -277,30 +279,48 @@ async def process_messages():
     # =================================
 
     current_hour = datetime.now().hour
-    
+    today_str = datetime.now().strftime("%Y-%m-%d")
+
     if current_hour == 21:
-    
-        summary = (
-            generate_daily_summary()
-        )
-    
-        brain_summary = (
-            generate_brain_summary()
-        )
-    
-        await bot.send_message(
-            chat_id=ADMIN_USER_ID,
-            text=brain_summary
-        )
-    
-        await bot.send_message(
-            chat_id=ADMIN_USER_ID,
-            text=summary
-        )
-    
-        logging.info(
-            "Daily summary sent"
-        )
+
+        processed = load_processed_messages()
+
+        last_summary_date = processed.get("__daily_summary_sent__")
+
+        if last_summary_date != today_str:
+
+            summary = (
+                generate_daily_summary()
+            )
+
+            brain_summary = (
+                generate_brain_summary()
+            )
+
+            await bot.send_message(
+                chat_id=ADMIN_USER_ID,
+                text=brain_summary
+            )
+
+            await bot.send_message(
+                chat_id=ADMIN_USER_ID,
+                text=summary
+            )
+
+            processed["__daily_summary_sent__"] = today_str
+            save_processed_messages(processed)
+
+            logging.info(
+                "Daily summary sent [date=%s]",
+                today_str
+            )
+
+        else:
+
+            logging.info(
+                "Daily summary already sent today [date=%s] — skipping",
+                today_str
+            )
     # =================================
     # Scheduled Reminder Engine
     # =================================
@@ -308,6 +328,8 @@ async def process_messages():
     tasks = load_tasks()
 
     pending_tasks = []
+
+    now = datetime.now()
 
     for task in tasks:
 
@@ -321,9 +343,42 @@ async def process_messages():
             )
         )
 
-        if datetime.now() >= next_reminder:
+        if now < next_reminder:
 
-            pending_tasks.append(task)
+            continue
+
+        # Skip if already reminded within the last 55 minutes
+        # (prevents re-sending on every 10-min GitHub Actions run)
+        last_reminded = task.get("last_reminded")
+
+        if last_reminded:
+
+            try:
+
+                last_reminded_dt = datetime.fromisoformat(last_reminded)
+
+                minutes_since = (now - last_reminded_dt).total_seconds() / 60
+
+                if minutes_since < 55:
+
+                    logging.info(
+                        "Reminder suppressed — sent %.0f min ago "
+                        "[task_id=%s]",
+                        minutes_since,
+                        task.get("id", "unknown")
+                    )
+
+                    continue
+
+            except Exception:
+
+                logging.exception(
+                    "Failed to parse last_reminded "
+                    "[task_id=%s last_reminded=%s]",
+                    task.get("id", "unknown"), last_reminded
+                )
+
+        pending_tasks.append(task)
 
     if pending_tasks:
 
@@ -384,8 +439,15 @@ async def process_messages():
             text=reminder_text
         )
 
+        # Stamp last_reminded on each task so dedup works next run
+        tasks = load_tasks()
+        for i, task in enumerate(tasks):
+            if task in pending_tasks:
+                update_last_reminded(i)
+
         logging.info(
-            "Scheduled reminders sent"
+            "Scheduled reminders sent [count=%d]",
+            len(pending_tasks)
         )
 
     dialogs = await client.get_dialogs()
@@ -685,6 +747,46 @@ async def process_messages():
                         save_tasks(tasks)
             
                     else:
+
+                        if task_exists(clean_task):
+
+                            logging.info(
+                                "Duplicate task skipped (followup-else) "
+                                "[task=%s sender=%s]",
+                                clean_task, dialog.name
+                            )
+
+                        else:
+            
+                            create_semantic_task(
+            
+                                message=clean_task,
+            
+                                sender=dialog.name,
+            
+                                priority=priority
+            
+                            )
+            
+                            update_relationship_memory(
+            
+                                dialog.name,
+            
+                                clean_task
+            
+                            )
+            
+                else:
+
+                    if task_exists(clean_task):
+
+                        logging.info(
+                            "Duplicate task skipped — already exists "
+                            "[task=%s sender=%s]",
+                            clean_task, dialog.name
+                        )
+
+                    else:
             
                         create_semantic_task(
             
@@ -703,26 +805,6 @@ async def process_messages():
                             clean_task
             
                         )
-            
-                else:
-            
-                    create_semantic_task(
-            
-                        message=clean_task,
-            
-                        sender=dialog.name,
-            
-                        priority=priority
-            
-                    )
-            
-                    update_relationship_memory(
-            
-                        dialog.name,
-            
-                        clean_task
-            
-                    )
             
                 update_chat_state(
             
