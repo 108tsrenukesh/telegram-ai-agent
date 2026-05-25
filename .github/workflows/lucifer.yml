@@ -1,0 +1,75 @@
+name: Lucifer AI Assistant
+
+on:
+  schedule:
+    - cron: '0 */5 * * *'   # Every 5 hours
+  workflow_dispatch:          # Manual trigger from GitHub UI
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write         # Needed to commit state files back
+
+    steps:
+
+      # ── 1. Checkout repo ──────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 2. Set up Python ─────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      # ── 3. Install dependencies ───────────────────────────────────
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ── 4. Initialize state files if missing ─────────────────────
+      #    Runs only on very first deploy when files don't exist yet
+      - name: Initialize state files
+        run: |
+          [ -f tasks.json ]                || echo "[]"  > tasks.json
+          [ -f conversation_state.json ]   || echo "{}"  > conversation_state.json
+          [ -f relationship_memory.json ]  || echo "{}"  > relationship_memory.json
+          [ -f entity_memory.json ]        || echo "{}"  > entity_memory.json
+          [ -f pending_replies.json ]      || echo "[]"  > pending_replies.json
+          [ -f processed_messages.json ]   || echo "{}"  > processed_messages.json
+          [ -f contacts.json ]             || echo "{}"  > contacts.json
+
+      # ── 5. Run Lucifer ────────────────────────────────────────────
+      - name: Run Lucifer
+        env:
+          API_ID: ${{ secrets.API_ID }}
+          API_HASH: ${{ secrets.API_HASH }}
+          SESSION_STRING: ${{ secrets.SESSION_STRING }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          ADMIN_USER_ID: ${{ secrets.ADMIN_USER_ID }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python main.py
+
+      # ── 6. Commit updated state files back to repo ────────────────
+      - name: Commit state files
+        run: |
+          git config user.name  "Lucifer Bot"
+          git config user.email "lucifer-bot@github-actions"
+          git add tasks.json \
+                  conversation_state.json \
+                  relationship_memory.json \
+                  entity_memory.json \
+                  pending_replies.json \
+                  processed_messages.json \
+                  contacts.json
+          git diff --cached --quiet || git commit -m "chore: update state files [skip ci]"
+
+      # ── 7. Push back to repo ──────────────────────────────────────
+      - name: Push state files
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
