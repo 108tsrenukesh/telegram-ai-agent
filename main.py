@@ -887,9 +887,13 @@ async def process_messages():
                                 reply_to=latest_message_id
                             )
 
-                except Exception as e:
+                except Exception:
 
-                    logging.exception(e)
+                    logging.exception(
+                        "Failed to send task completion reply "
+                        "[dialog=%s]",
+                        dialog.name
+                    )
 
             # =================================
             # TASK COMPLETION
@@ -930,9 +934,13 @@ async def process_messages():
                             reply_to=latest_message_id
                         )
 
-                except Exception as e:
+                except Exception:
 
-                    logging.exception(e)
+                    logging.exception(
+                        "Failed to send task completion reply "
+                        "[dialog=%s]",
+                        dialog.name
+                    )
 
             # =================================
             # CORRECTION CHECK
@@ -969,9 +977,13 @@ async def process_messages():
                             reply_to=latest_message_id
                         )
 
-                except Exception as e:
+                except Exception:
 
-                    logging.exception(e)
+                    logging.exception(
+                        "Failed to send task completion reply "
+                        "[dialog=%s]",
+                        dialog.name
+                    )
                     
             # =================================
             # STATUS CHECK
@@ -1008,9 +1020,13 @@ async def process_messages():
                             reply_to=latest_message_id
                         )
 
-                except Exception as e:
+                except Exception:
 
-                    logging.exception(e)
+                    logging.exception(
+                        "Failed to send task completion reply "
+                        "[dialog=%s]",
+                        dialog.name
+                    )
 
             # =================================
             # ACKNOWLEDGEMENT
@@ -1047,9 +1063,13 @@ async def process_messages():
                             reply_to=latest_message_id
                         )
 
-                except Exception as e:
+                except Exception:
 
-                    logging.exception(e)
+                    logging.exception(
+                        "Failed to send task completion reply "
+                        "[dialog=%s]",
+                        dialog.name
+                    )
 
             # =================================
             # EMOTIONAL / CLOSURE
@@ -1089,9 +1109,13 @@ async def process_messages():
                             reply_to=latest_message_id
                         )
 
-                except Exception as e:
+                except Exception:
 
-                    logging.exception(e)
+                    logging.exception(
+                        "Failed to send task completion reply "
+                        "[dialog=%s]",
+                        dialog.name
+                    )
 
             # =================================
             # GENERAL
