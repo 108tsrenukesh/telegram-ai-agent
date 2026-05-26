@@ -3,21 +3,13 @@
 venv/
 .venv/
 
-# Environment variables
+# Environment variables — NEVER commit these
 
 .env
 
-# Telethon sessions
+# Telethon sessions — NEVER commit these
 
 *.session
-
-# Runtime memory/state
-
-processed_messages.json
-conversation_state.json
-relationship_memory.json
-tasks.json
-pending_replies.json
 
 # Logs
 
@@ -26,7 +18,7 @@ logs/
 
 # Python cache
 
-**pycache**/
+__pycache__/
 *.pyc
 
 # Notebook cache
