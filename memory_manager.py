@@ -190,11 +190,53 @@ def complete_task(identifier):
 
     elif isinstance(identifier, str):
 
+        identifier_lower = identifier.lower()
+
+        # Keyword aliases: map natural completion phrases to task types/items
+        TYPE_ALIASES = {
+            "GROCERY":  ["grocery", "groceries", "vegetables", "milk",
+                         "bread", "food", "snacks", "shopping"],
+            "MEDICAL":  ["medicine", "medicines", "medical", "tablet",
+                         "tablets", "hospital", "pharmacy", "doctor"],
+            "GENERAL":  ["general", "task", "work", "report", "done"],
+        }
+
         for task in tasks:
 
+            # Match against items (e.g. "milk", "medicines", "groceries")
+            items = task.get("items", [])
+            items_text = " ".join(items).lower()
+
+            # Match against task type using aliases
+            task_type = task.get("type", "").upper()
+            type_aliases = TYPE_ALIASES.get(task_type, [task_type.lower()])
+
+            # Match against legacy "message" field if present
             task_message = task.get("message", "").lower()
 
-            if identifier.lower() in task_message:
+            matched = (
+                # user text contains item name
+                any(
+                    item.lower() in identifier_lower
+                    for item in items
+                    if item.strip()
+                )
+                # item name contains user text keyword
+                or any(
+                    identifier_lower in item.lower()
+                    for item in items
+                    if item.strip()
+                )
+                # user text matches a type alias
+                or any(
+                    alias in identifier_lower
+                    for alias in type_aliases
+                )
+                # legacy message field match
+                or identifier_lower in task_message
+            )
+
+            if matched:
 
                 task["status"] = "COMPLETED"
                 task["updated_at"] = str(datetime.now())
