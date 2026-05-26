@@ -205,7 +205,6 @@ def complete_task(identifier):
 
             # Match against items (e.g. "milk", "medicines", "groceries")
             items = task.get("items", [])
-            items_text = " ".join(items).lower()
 
             # Match against task type using aliases
             task_type = task.get("type", "").upper()
